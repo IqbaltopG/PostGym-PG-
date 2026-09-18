@@ -4,6 +4,7 @@ venv/
 *.pyc
 
 # Local Database (JAGA PRIVASI BEBAN GYM!)
+gymmate.db
 src/backend/gymmate.db
 
 # LLM Models (Ukurannya raksasa, jangan di-push)
