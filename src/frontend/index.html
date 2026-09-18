@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>POST GYM</title>
+    <link rel="stylesheet" href="style.css?v=2">
+    <!-- App logic first, then Alpine, then Chart -->
+    <script src="app.js?v=2" defer></script>
+    <script defer src="alpine.min.js"></script>
+    <script defer src="chart.min.js"></script>
+</head>
+<body class="dark-theme">
+
+    <div id="app" x-data="gymApp()" style="display: flex; flex-direction: column; height: 100vh;">
+        
+        <!-- HEADER -->
+        <header class="app-header" style="display: flex; justify-content: space-between; align-items: center; padding: 15px 20px;">
+            <div>
+                <h1 style="margin: 0; font-size: 1.5rem;">POST <span class="ai-badge">GYM</span></h1>
+                <div class="date-display" x-text="todayDate" style="font-size: 0.8rem; margin-top: 5px;"></div>
+            </div>
+            
+            <!-- GAMIFICATION BADGE -->
+            <div class="gamification-badge" x-show="todaySchedule.gamification" style="text-align: right; background: rgba(3,218,198,0.1); padding: 8px 12px; border-radius: 8px; border: 1px solid var(--accent);">
+                <div style="font-size: 0.75rem; color: #ccc;">Level <span x-text="todaySchedule.gamification?.level"></span></div>
+                <div style="font-weight: bold; color: var(--accent); font-size: 1rem;" x-text="todaySchedule.gamification?.title"></div>
+            </div>
+        </header>
+
+        <!-- MAIN CONTENT AREA -->
+        <main class="content-area">
+            
+            <!-- TAB 1: JADWAL -->
+            <div x-show="activeTab === 'jadwal'" class="tab-pane" x-transition>
+                <div class="schedule-card">
+                    <h2 class="section-title">Jadwal Hari Ini: <span class="highlight" x-text="todaySchedule.name"></span></h2>
+                    
+                    <ul class="exercise-list">
+                        <template x-for="exercise in todaySchedule.exercises" :key="exercise.name">
+                            <li class="exercise-item">
+                                <div class="ex-header">
+                                    <strong x-text="exercise.name"></strong>
+                                </div>
+                                <div class="ex-history" x-show="exercise.last_weight !== null">
+                                    <span>Last: <span x-text="exercise.last_weight"></span>kg x <span x-text="exercise.last_reps"></span> (<span x-text="exercise.last_sets"></span> sets)</span>
+                                </div>
+                                <div class="ex-recommendation" x-show="exercise.recommendation" style="margin-top: 5px; padding: 6px; background-color: rgba(3,218,198,0.1); border-left: 3px solid var(--accent); font-size: 0.8rem; border-radius: 4px;">
+                                    🎯 Target: <strong x-text="exercise.recommendation.weight + 'kg x ' + exercise.recommendation.target_reps"></strong><br>
+                                    💡 <span x-text="exercise.recommendation.message" style="color: var(--accent);"></span>
+                                </div>
+                                <div class="ex-history empty" x-show="exercise.last_weight === null">
+                                    Belum ada history
+                                </div>
+                            </li>
+                        </template>
+                    </ul>
+                    
+                    <button class="btn-primary mt-4" @click="activeTab = 'log'">Mulai Latihan</button>
+                </div>
+            </div>
+
+            <!-- TAB 2: LOG (CORE FEATURE) -->
+            <div x-show="activeTab === 'log'" class="tab-pane" x-transition>
+                <div class="log-container">
+                    <p class="helper-text">Ketik bebas log latihanmu di bawah ini.</p>
+                    
+                    <div class="textarea-wrapper">
+                        <textarea 
+                            class="free-text-input" 
+                            x-model="rawLogText" 
+                            placeholder="Contoh:&#10;incline press 15kg 10x3&#10;pec deck 16kg 12x3&#10;capek bgt form agak jelek"
+                            rows="6">
+                        </textarea>
+                    </div>
+
+                    <button 
+                        class="btn-primary mt-4" 
+                        @click="parseWithAI()" 
+                        :disabled="isParsing || rawLogText.trim() === ''">
+                        <span x-show="!isParsing">🤖 Parse JSON</span>
+                        <span x-show="isParsing">Menerjemahkan...</span>
+                    </button>
+
+                    <!-- Preview Hasil & Edit -->
+                    <div class="preview-card mt-4" x-show="parsedResult">
+                        <h3 style="margin-bottom: 10px;">🔍 Preview & Koreksi</h3>
+                        <p style="font-size: 0.85rem; color: #aaa; margin-bottom: 10px;">Kalau AI salah tangkap, silakan edit langsung JSON di bawah ini sebelum disimpan.</p>
+                        
+                        <textarea x-model="editableJson" style="width: 100%; height: 200px; background: #1a1a1a; color: #03dac6; border: 1px solid #333; border-radius: 4px; padding: 10px; font-family: monospace; font-size: 0.9rem; margin-bottom: 15px;"></textarea>
+                        
+                        <button class="btn-primary" style="background-color: var(--accent); color: black;" @click="saveToDB()" :disabled="isSaving">
+                            <span x-show="!isSaving">✅ Simpan ke Database</span>
+                            <span x-show="isSaving">Menyimpan...</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 3: HISTORY -->
+            <div x-show="activeTab === 'history'" class="tab-pane" x-transition style="height: 100%; overflow-y: auto;">
+                <h2 class="section-title" style="margin-bottom: 15px;">Riwayat Latihanmu</h2>
+                
+                <div x-show="logs.length === 0" style="text-align: center; color: var(--text-muted); margin-top: 20px;">
+                    Belum ada riwayat. Ayo ketik log pertamamu!
+                </div>
+
+                <div class="history-list" style="display: flex; flex-direction: column; gap: 15px; padding-bottom: 20px;">
+                    <template x-for="log in logs" :key="log.date">
+                        <div class="history-card" style="background: var(--bg-dark); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color);">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 10px; border-bottom: 1px solid var(--border-color); padding-bottom: 5px;">
+                                <strong class="highlight" x-text="log.date"></strong>
+                            </div>
+                            
+                            <ul style="list-style: none; padding: 0; margin: 0;">
+                                <template x-for="ex in log.exercises">
+                                    <li style="margin-bottom: 8px;">
+                                        <div style="font-weight: 500; font-size: 0.95rem; color: #fff;" x-text="ex.name"></div>
+                                        <div style="color: var(--text-muted); font-size: 0.85rem;" x-text="ex.sets_summary"></div>
+                                    </li>
+                                </template>
+                            </ul>
+                            
+                            <!-- Catatan sesi kalau ada -->
+                            <div x-show="log.note" style="margin-top: 10px; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 4px; font-size: 0.85rem; font-style: italic; color: #ccc;">
+                                "<span x-text="log.note"></span>"
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- TAB 4: PROGRESS -->
+            <div x-show="activeTab === 'progress'" class="tab-pane" x-transition style="height: 100%; overflow-y: auto;">
+                <h2 class="section-title" style="margin-bottom: 15px;">📊 Progress Latihan</h2>
+                
+                <div class="history-card" style="background: var(--bg-dark); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color); margin-bottom: 15px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <strong style="color: #fff;">Konsistensi</strong>
+                        <select x-model="recapPeriod" @change="fetchRecap()" style="padding: 5px; background: #222; color: white; border: 1px solid var(--border-color); border-radius: 4px;">
+                            <option value="week">Mingguan</option>
+                            <option value="month">Bulanan</option>
+                            <option value="year">Tahunan</option>
+                        </select>
+                    </div>
+                    <canvas id="recapChart" style="max-height: 200px; width: 100%;"></canvas>
+                </div>
+
+                <div class="history-card" style="background: var(--bg-dark); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color); padding-bottom: 30px;">
+                    <div style="margin-bottom: 10px;">
+                        <strong style="color: #fff; display: block; margin-bottom: 8px;">Kekuatan Beban Maksimal</strong>
+                        <select x-model="selectedExercise" @change="fetchProgress()" style="width: 100%; padding: 8px; background: #222; color: white; border: 1px solid var(--border-color); border-radius: 4px;">
+                            <option value="">Pilih Gerakan...</option>
+                            <template x-for="ex in exerciseList" :key="ex.canonical">
+                                <option :value="ex.canonical" x-text="ex.name"></option>
+                            </template>
+                        </select>
+                    </div>
+                    <canvas id="progressChart" style="max-height: 250px; width: 100%;"></canvas>
+                </div>
+            </div>
+
+        </main>
+
+        <!-- BOTTOM NAVIGATION -->
+        <nav class="bottom-nav">
+            <button class="nav-item" :class="{ 'active': activeTab === 'jadwal' }" @click="activeTab = 'jadwal'">
+                <span class="nav-icon">📅</span>
+                <span>Jadwal</span>
+            </button>
+            <button class="nav-item center-nav" :class="{ 'active': activeTab === 'log' }" @click="activeTab = 'log'">
+                <span class="nav-icon">✏️</span>
+                <span>Log AI</span>
+            </button>
+            <button class="nav-item" :class="{ 'active': activeTab === 'history' }" @click="activeTab = 'history'">
+                <span class="nav-icon">🕒</span>
+                <span>History</span>
+            </button>
+            <button class="nav-item" :class="{ 'active': activeTab === 'progress' }" @click="activeTab = 'progress'; initCharts();">
+                <span class="nav-icon">📈</span>
+                <span>Progress</span>
+            </button>
+        </nav>
+
+    </div>
+
+</body>
+</html>

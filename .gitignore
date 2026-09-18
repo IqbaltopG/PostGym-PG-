@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+venv/
+*.pyc
+
+# Local Database (JAGA PRIVASI BEBAN GYM!)
+src/backend/gymmate.db
+
+# LLM Models (Ukurannya raksasa, jangan di-push)
+models/*.gguf
+llama.cpp/
+
+# Dataset Latihan (Data Pribadi)
+dataset/raw/
+dataset/gold/
+*.jsonl
+
+# OS Files
+.DS_Store
