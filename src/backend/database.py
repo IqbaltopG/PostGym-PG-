@@ -85,26 +85,7 @@ def save_workout_log(parsed_json):
     """Simpan hasil parsing AI (JSON) ke SQLite"""
     conn = get_connection()
     cursor = conn.cursor()
-    
-    date = parsed_json['date']
-    note = parsed_json.get('session_note')
-    
-    # Insert sesi (abaikan kalau hari itu udah ada, atau bisa juga update)
-    cursor.execute("INSERT OR IGNORE INTO workout_sessions (date, session_note) VALUES (?, ?)", (date, note))
-    
-    # Ambil ID sesi
-    cursor.execute("SELECT id FROM workout_sessions WHERE date = ?", (date,))
-    session_id = cursor.fetchone()['id']
-    
-    # Insert semua exercise dan set
-    for group in parsed_json['sessions']:
-        muscle = group['muscle_group']
-        for ex in group['exercises']:
-            cursor.execute('''
-                INSERT INTO exercises (session_id, muscle_group, name, canonical) 
-                VALUES (?, ?, ?, ?)
-            ''', (session_id, muscle, ex['name'], ex['canonical']))
-            
+
     try:
         date = parsed_json['date']
         note = parsed_json.get('session_note')
@@ -115,7 +96,12 @@ def save_workout_log(parsed_json):
         # Ambil ID sesi
         cursor.execute("SELECT id FROM workout_sessions WHERE date = ?", (date,))
         session_id = cursor.fetchone()['id']
-        
+
+        # Bersihkan data lama tanggal ini supaya simpan ulang tidak menumpuk data
+        cursor.execute("DELETE FROM sets WHERE exercise_id IN (SELECT id FROM exercises WHERE session_id = ?)", (session_id,))
+        cursor.execute("DELETE FROM exercises WHERE session_id = ?", (session_id,))
+        cursor.execute("UPDATE workout_sessions SET session_note = ? WHERE id = ?", (note, session_id))
+
         # Insert semua exercise dan set
         for group in parsed_json['sessions']:
             muscle = group['muscle_group']

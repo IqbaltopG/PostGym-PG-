@@ -82,7 +82,7 @@ document.addEventListener('alpine:init', () => {
                     
                     this.loadSchedule();
                     this.loadHistory();
-                    this.tab = 'history'; // Pindah ke tab history setelah save
+                    this.activeTab = 'history'; // Pindah ke tab history setelah save
                 } else {
                     alert("Gagal menyimpan: " + result.message);
                 }

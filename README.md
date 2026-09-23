@@ -29,7 +29,7 @@ Berbeda dengan aplikasi gym biasa yang memaksa user memilih gerakan dari *dropdo
    ```bash
    python3 -m venv venv
    source venv/bin/activate
-   pip install -r requirements.txt
+   pip install -r src/backend/requirements.txt
    ```
 
 3. **Download Model (Qwen 1.5B GGUF):**

@@ -18,3 +18,7 @@ dataset/gold/
 
 # OS Files
 .DS_Store
+
+# Docs (jangan di-commit, kecuali README)
+*.md
+!/README.md

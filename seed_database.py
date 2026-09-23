@@ -1,13 +1,25 @@
 import os
 import json
-import sqlite3
-from src.backend.database import save_workout_log
+from src.backend.database import save_workout_log, save_schedule
 
 # Path ke direktori
 GOLD_DIR = "dataset/gold"
+SCHEDULE_PATH = "dataset/raw/user_ambatron/schedule.json"
+
+def seed_schedule():
+    print("Memuat jadwal gym dari schedule.json...")
+    with open(SCHEDULE_PATH, 'r', encoding='utf-8') as f:
+        raw = json.load(f)
+
+    # Dukung format nested {schedule_name, days: {...}} maupun flat {day: [...]}
+    schedule = raw.get("days", raw)
+    save_schedule(schedule)
+    print("Jadwal berhasil dimuat ke database.")
 
 def seed_database():
     print("Mulai menyuntikkan data Gold ke SQLite...")
+
+    seed_schedule()
     
     # Ambil semua file .json di folder gold
     gold_files = [f for f in os.listdir(GOLD_DIR) if f.endswith('.json')]
