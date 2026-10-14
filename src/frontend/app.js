@@ -2,6 +2,7 @@ document.addEventListener('alpine:init', () => {
     Alpine.data('gymApp', () => ({
         activeTab: 'jadwal', // Tab aktif: jadwal, log, history
         todayDate: new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'short' }),
+        showRankModal: false, // Modal detail rank RPG
         
         todaySchedule: { name: "Loading...", exercises: [] },
         logs: [], // Untuk tab history (riwayat)

@@ -43,29 +43,52 @@ async def get_today_plan():
     elif level <= 12: title = "🔱 Poseidon"
     else: title = "⚡ Greek God"
 
-    today_name = datetime.today().strftime('%A').lower()
+    # Detail progress level
+    sessions_in_level = total_sessions % 5
+    sessions_needed = 5 - sessions_in_level
+    progress_percent = int((sessions_in_level / 5) * 100)
+
+    gamification_info = {
+        "level": level,
+        "title": title,
+        "total_sessions": total_sessions,
+        "sessions_needed": sessions_needed,
+        "progress_percent": progress_percent
+    }
+
+    DAY_NAME_ID = {
+        "monday": "senin",
+        "tuesday": "selasa",
+        "wednesday": "rabu",
+        "thursday": "kamis",
+        "friday": "jumat",
+        "saturday": "sabtu",
+        "sunday": "minggu",
+    }
+    today_eng = datetime.today().strftime('%A').lower()
+    today_name = DAY_NAME_ID.get(today_eng, today_eng)
     
     schedule = get_schedule()
     if not schedule or today_name not in schedule:
-        return {"name": f"Jadwal {today_name.capitalize()}", "gamification": {"level": level, "title": title, "total_sessions": total_sessions}, "exercises": []}
+        return {"name": f"Jadwal {today_name.capitalize()}", "gamification": gamification_info, "exercises": []}
         
     muscle_groups = schedule[today_name]
+    if muscle_groups == ["rest"]:
+        return {
+            "name": f"Jadwal {today_name.capitalize()} (Hari Istirahat / Rest Day 🛌)",
+            "gamification": gamification_info,
+            "exercises": []
+        }
+
     plan = {
         "name": f"{today_name.capitalize()} ({', '.join(muscle_groups).title()})",
-        "gamification": {
-            "level": level,
-            "title": title,
-            "total_sessions": total_sessions
-        },
+        "gamification": gamification_info,
         "exercises": []
     }
     
     # Query semua gerakan (canonical) yang pernah kamu lakukan untuk grup otot di jadwal hari ini
     conn = get_connection()
     placeholders = ','.join(['?'] * len(muscle_groups))
-    
-    # Supaya pencariannya case-insensitive dan spasi/karakter aman, pastikan format string sesuai
-    # (Di schedule.json hurufnya besar "Chest", tapi di DB kecil "chest")
     lower_muscles = [m.lower() for m in muscle_groups]
     
     rows = conn.execute(f"SELECT DISTINCT canonical FROM exercises WHERE LOWER(muscle_group) IN ({placeholders})", lower_muscles).fetchall()
@@ -89,7 +112,7 @@ async def get_today_plan():
             ex_data["last_reps"] = ", ".join(str(s["reps"]) for s in history["sets"])
             ex_data["last_sets"] = len(history["sets"])
             
-            # THE MAGIC: Panggil Rule Engine (Hypertrophy Rules)
+            # Panggil Rule Engine (Hypertrophy Rules)
             saran = calculate_next_target(history["sets"], rep_range=(8, 12))
             ex_data["recommendation"] = saran
             
@@ -111,6 +134,9 @@ def preprocess_text(text: str) -> str:
             continue
         lines.append(line_clean)
     text = '\n'.join(lines)
+
+    # Tangani istilah gerakan fisik informal / slang gym
+    text = re.sub(r'\b(pantat\s*naik\s*turun|naik\s*turun\s*pantat|dorong\s*pantat)\b', 'hip thrust', text, flags=re.IGNORECASE)
 
     # Ubah desimal berkoma Indonesia "7,5kg" -> "7.5kg"
     processed = re.sub(r'(\d+),(\d+)', r'\1.\2', text)
@@ -142,14 +168,19 @@ def preprocess_text(text: str) -> str:
     return processed
 
 CANONICAL_MAP = {
+    "pantat_naik_turun": "hip_thrust",
+    "hip_thrust": "hip_thrust",
+    "glute_bridge": "hip_thrust",
     "squad": "barbell_squat",
     "squat": "barbell_squat",
     "weighted_squad": "barbell_squat",
     "squad_bar_only": "barbell_squat",
     "dumbbell_squat": "barbell_squat",
-    "incline_press": "incline_dumbbell_press",
-    "incline_chest_press": "incline_dumbbell_press",
-    "incline_chest_press_multipress_machine": "incline_dumbbell_press",
+    "incline_press": "incline_chest_press",
+    "incline_chest_press": "incline_chest_press",
+    "incline_chest_press_multipress_machine": "incline_chest_press",
+    "incline_db_press": "incline_dumbbell_press",
+    "incline_dumbbell_press": "incline_dumbbell_press",
     "pec_deck_fly": "pec_deck",
     "pecdeck_fly": "pec_deck",
     "fly_machine": "pec_deck",

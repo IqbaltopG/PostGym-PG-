@@ -21,12 +21,47 @@
                 <div class="date-display" x-text="todayDate" style="font-size: 0.8rem; margin-top: 5px;"></div>
             </div>
             
-            <!-- GAMIFICATION BADGE -->
-            <div class="gamification-badge" x-show="todaySchedule.gamification" style="text-align: right; background: rgba(3,218,198,0.1); padding: 8px 12px; border-radius: 8px; border: 1px solid var(--accent);">
-                <div style="font-size: 0.75rem; color: #ccc;">Level <span x-text="todaySchedule.gamification?.level"></span></div>
+            <!-- GAMIFICATION BADGE (CLICKABLE) -->
+            <div class="gamification-badge" x-show="todaySchedule.gamification" @click="showRankModal = true" style="text-align: right; background: rgba(3,218,198,0.1); padding: 8px 12px; border-radius: 8px; border: 1px solid var(--accent); cursor: pointer;" title="Klik untuk lihat detail rank RPG">
+                <div style="font-size: 0.75rem; color: #ccc;">Level <span x-text="todaySchedule.gamification?.level"></span> 👆</div>
                 <div style="font-weight: bold; color: var(--accent); font-size: 1rem;" x-text="todaySchedule.gamification?.title"></div>
             </div>
         </header>
+
+        <!-- RANK DETAILS MODAL POPUP -->
+        <div x-show="showRankModal" x-transition.opacity style="position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 999; display: flex; align-items: center; justify-content: center; padding: 20px;">
+            <div class="schedule-card" @click.away="showRankModal = false" style="max-width: 400px; width: 100%; border: 1px solid var(--accent); box-shadow: 0 0 25px rgba(3,218,198,0.25);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <h2 style="font-size: 1.15rem; color: var(--accent); margin: 0;">🏆 Detail Rank RPG</h2>
+                    <button @click="showRankModal = false" style="background: none; border: none; color: #aaa; font-size: 1.5rem; cursor: pointer;">&times;</button>
+                </div>
+                
+                <div style="text-align: center; padding: 15px 10px; background: rgba(255,255,255,0.03); border-radius: 8px; margin-bottom: 15px;">
+                    <div style="font-size: 1.8rem; font-weight: bold; margin-bottom: 4px; color: var(--accent);" x-text="todaySchedule.gamification?.title"></div>
+                    <div style="font-size: 1rem; font-weight: bold; color: var(--primary);">Level <span x-text="todaySchedule.gamification?.level"></span></div>
+                    <div style="font-size: 0.85rem; color: #bbb; margin-top: 4px;">Total Latihan Tercatat: <strong style="color: #fff;" x-text="todaySchedule.gamification?.total_sessions"></strong> Sesi</div>
+                    
+                    <!-- Progress Bar to Next Level -->
+                    <div style="margin: 15px 10px 6px 10px; background: #333; border-radius: 10px; height: 10px; overflow: hidden;">
+                        <div :style="'width: ' + (todaySchedule.gamification?.progress_percent || 0) + '%; height: 100%; background: linear-gradient(90deg, var(--primary), var(--accent)); transition: width 0.3s ease;'"></div>
+                    </div>
+                    <div style="font-size: 0.8rem; color: #03dac6; margin-top: 6px;">
+                        Tinggal <strong x-text="todaySchedule.gamification?.sessions_needed"></strong> sesi lagi untuk naik ke level berikutnya!
+                    </div>
+                </div>
+
+                <h3 style="font-size: 0.9rem; margin-bottom: 8px; color: #eee;">Tier Gelar Gym:</h3>
+                <ul style="list-style: none; padding: 0; margin: 0; font-size: 0.82rem; line-height: 1.9;">
+                    <li :style="todaySchedule.gamification?.level <= 2 ? 'color: var(--accent); font-weight: bold;' : 'color: #777;'">🐣 Couch Potato (Level 1–2 / 1–10 sesi)</li>
+                    <li :style="(todaySchedule.gamification?.level >= 3 && todaySchedule.gamification?.level <= 5) ? 'color: var(--accent); font-weight: bold;' : 'color: #777;'">🦍 Gym Bro (Level 3–5 / 11–25 sesi)</li>
+                    <li :style="(todaySchedule.gamification?.level >= 6 && todaySchedule.gamification?.level <= 8) ? 'color: var(--accent); font-weight: bold;' : 'color: #777;'">🦾 Iron Man (Level 6–8 / 26–40 sesi)</li>
+                    <li :style="(todaySchedule.gamification?.level >= 9 && todaySchedule.gamification?.level <= 12) ? 'color: var(--accent); font-weight: bold;' : 'color: #777;'">🔱 Poseidon (Level 9–12 / 41–60 sesi)</li>
+                    <li :style="todaySchedule.gamification?.level >= 13 ? 'color: var(--accent); font-weight: bold;' : 'color: #777;'">⚡ Greek God (Level 13+ / 61+ sesi)</li>
+                </ul>
+
+                <button class="btn-primary mt-4" @click="showRankModal = false" style="background: #2a2a2a; color: #fff; border: 1px solid #444; padding: 10px;">Tutup</button>
+            </div>
+        </div>
 
         <!-- MAIN CONTENT AREA -->
         <main class="content-area">
