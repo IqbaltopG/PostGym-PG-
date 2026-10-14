@@ -133,12 +133,10 @@ Buka **`http://localhost:8000`** di browser laptop Anda, atau buka **`http://<IP
 
 ```
 aplikasi-gym/
-├── dataset/                    # Pipeline data training & anotasi
-│   ├── gold/                   # 50+ anotasi pasangan input-output JSON terverifikasi
-│   ├── raw/                    # Catatan teks mentah asli (24 Juli - 14 Okt 2026)
-│   ├── scripts/                # Script preprocessing & builder dataset ChatML
-│   ├── dataset_train.jsonl     # Dataset final siap training Unsloth
-│   └── gymmate-finetune.ipynb  # Google Colab notebook untuk QLoRA fine-tuning
+├── training/                   # Otomatisasi Pipeline & Workflow Fine-Tuning
+│   ├── auto_pipeline.py        # Single automated script: split raw log -> build ChatML JSONL
+│   └── gymmate-finetune.ipynb  # Google Colab notebook untuk QLoRA fine-tuning (T4 GPU)
+├── dataset/                    # Data mentah & anotasi lokal (100% dikecualikan dari git)
 ├── docs/                       # Dokumentasi arsitektur & PRD
 ├── models/                     # Tempat file bobot GGUF (dikecualikan dari git)
 ├── src/

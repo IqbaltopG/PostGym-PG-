@@ -11,9 +11,8 @@ src/backend/gymmate.db
 models/*.gguf
 llama.cpp/
 
-# Dataset Latihan (Data Pribadi)
-dataset/raw/
-dataset/gold/
+# Dataset Latihan (Data Pribadi 100% Offline)
+dataset/
 *.jsonl
 
 # OS Files
