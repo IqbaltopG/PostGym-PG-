@@ -103,6 +103,21 @@ import urllib.request
 import re
 
 def preprocess_text(text: str) -> str:
+    lines = []
+    for line in text.splitlines():
+        line_clean = line.strip()
+        # Abaikan latihan yang di-skip oleh user (contoh: "jm press 15kg 10x3(skip)")
+        if re.search(r'\(skip\)|skip sudah nda sanggup', line_clean, re.IGNORECASE):
+            continue
+        lines.append(line_clean)
+    text = '\n'.join(lines)
+
+    # Ubah desimal berkoma Indonesia "7,5kg" -> "7.5kg"
+    processed = re.sub(r'(\d+),(\d+)', r'\1.\2', text)
+
+    # Ubah singkatan berat "60k" -> "60kg" (kecuali jika bagian dari kata)
+    processed = re.sub(r'(\d+(?:\.\d+)?)\s*k(?![a-zA-Z0-9])', r'\1kg', processed)
+
     # Mengubah format "10x3" ATAU "3x10" menjadi "10 10 10"
     def expand_multiplier(match):
         a = int(match.group(1))
@@ -119,13 +134,57 @@ def preprocess_text(text: str) -> str:
         return ' '.join([str(reps)] * sets)
     
     # Cari pola (angka)x(angka)
-    processed = re.sub(r'(\d+)\s*[xX]\s*(\d+)', expand_multiplier, text)
+    processed = re.sub(r'(\d+)\s*[xX]\s*(\d+)', expand_multiplier, processed)
     
     # Hapus koma pemisah antar angka (biar "10, 11 11" jadi "10 11 11")
-    # Hati-hati jangan sampai merusak desimal "12,5" (nggak ada spasi)
     processed = re.sub(r'(\d+),\s+(\d+)', r'\1 \2', processed)
     
     return processed
+
+CANONICAL_MAP = {
+    "squad": "barbell_squat",
+    "squat": "barbell_squat",
+    "weighted_squad": "barbell_squat",
+    "squad_bar_only": "barbell_squat",
+    "dumbbell_squat": "barbell_squat",
+    "incline_press": "incline_dumbbell_press",
+    "incline_chest_press": "incline_dumbbell_press",
+    "incline_chest_press_multipress_machine": "incline_dumbbell_press",
+    "pec_deck_fly": "pec_deck",
+    "pecdeck_fly": "pec_deck",
+    "fly_machine": "pec_deck",
+    "pec_deck_fly_upper_front_chest": "pec_deck",
+    "pec_deck_back_shoulder": "reverse_fly",
+    "rear_delt_fly": "reverse_fly",
+    "rear_delt_pec_fly": "reverse_fly",
+    "back_shoulder_fly": "reverse_fly",
+    "lateral_rise": "lateral_raise",
+    "incline_shoulder_press": "dumbbell_shoulder_press",
+    "preachears_curl": "preacher_curl",
+    "preachers_curl": "preacher_curl",
+    "forearm_curl": "wrist_curl",
+    "forearm_train": "wrist_curl",
+    "curl": "wrist_curl",
+    "seated_narrow_grip_row": "seated_row",
+    "seated_cable_row": "seated_row",
+    "adducter_ke_dalam": "hip_adduction",
+    "adductor": "hip_adduction",
+    "abilow_core": "ab_wheel",
+    "abilow": "ab_wheel",
+    "hanging_leg_raises_in_bar": "hanging_leg_raise",
+    "hanging_leg_raise_in_bar": "hanging_leg_raise",
+    "core_training_leg_up_in_bar": "hanging_leg_raise",
+    "leg_up": "hanging_leg_raise",
+    "triceps_push_down": "tricep_pushdown",
+    "triceps_overhead_extention": "overhead_tricep_extension",
+    "overhead_extension": "overhead_tricep_extension",
+    "one_arm_triceps_push_down": "single_arm_tricep_pushdown",
+    "calf_press": "calf_raise",
+}
+
+def normalize_canonical(raw_canonical: str) -> str:
+    cleaned = re.sub(r'[^a-z0-9_]', '', raw_canonical.lower().strip().replace(' ', '_'))
+    return CANONICAL_MAP.get(cleaned, cleaned)
 
 @app.post("/api/parse")
 async def parse_log(request: ParseRequest):
@@ -208,20 +267,37 @@ Aturan:
             content = result.get('content', '{}')
             ai_output = json.loads(content)
             
-            # Filter deduplikasi (hapus kalau canonical sama di otot yang sama)
+            # Normalisasi canonical, sanitasi set, dan deduplikasi
             for session in ai_output.get("sessions", []):
                 seen = set()
                 unique_ex = []
                 for ex in session.get("exercises", []):
-                    canonical = ex.get("canonical", "").replace("_", "").replace(" ", "").lower()
-                    if canonical not in seen:
-                        seen.add(canonical)
+                    raw_c = ex.get("canonical", "")
+                    normalized_c = normalize_canonical(raw_c)
+                    ex["canonical"] = normalized_c
+                    
+                    # Validasi set: pastikan weight dan reps valid angka
+                    clean_sets = []
+                    for s in ex.get("sets", []):
+                        try:
+                            w = float(s.get("weight_kg", 0))
+                            r = int(s.get("reps", 0))
+                            if r > 0:
+                                s["weight_kg"] = w
+                                s["reps"] = r
+                                clean_sets.append(s)
+                        except (ValueError, TypeError):
+                            continue
+                    ex["sets"] = clean_sets
+
+                    if normalized_c not in seen and len(clean_sets) > 0:
+                        seen.add(normalized_c)
                         unique_ex.append(ex)
                 session["exercises"] = unique_ex
 
             return {"status": "success", "data": ai_output}
     except Exception as e:
-        return {"status": "error", "message": str(e)}
+        return {"status": "error", "message": f"Koneksi ke AI runtime gagal ({str(e)}). Pastikan llama-server berjalan di port 8080."}
 
 @app.post("/api/save")
 async def save_log(data: dict):
