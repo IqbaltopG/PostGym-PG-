@@ -362,6 +362,15 @@ async def get_exercises_list():
     conn.close()
     return [{"canonical": r["canonical"], "name": r["name"]} for r in rows]
 
+@app.get("/api/schedule")
+async def api_get_schedule():
+    return get_schedule() or {}
+
+@app.post("/api/schedule")
+async def api_save_schedule(new_sched: dict):
+    save_schedule(new_sched)
+    return {"status": "success"}
+
 # --- SERVE FRONTEND ---
 # Serve folder frontend sebagai static files di route utama "/"
 frontend_path = os.path.join(os.path.dirname(__file__), "../frontend")

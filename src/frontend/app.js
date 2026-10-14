@@ -21,6 +21,48 @@ document.addEventListener('alpine:init', () => {
             }
         },
 
+        showScheduleModal: false,
+        scheduleForm: { senin: '', selasa: '', rabu: '', kamis: '', jumat: '', sabtu: '', minggu: '' },
+
+        async openScheduleModal() {
+            try {
+                const res = await fetch('/api/schedule');
+                const sched = await res.json();
+                for (let day of ['senin', 'selasa', 'rabu', 'kamis', 'jumat', 'sabtu', 'minggu']) {
+                    this.scheduleForm[day] = (sched[day] || ['rest']).join(', ');
+                }
+                this.showScheduleModal = true;
+            } catch(e) {
+                alert("Gagal memuat jadwal!");
+            }
+        },
+
+        async saveScheduleForm() {
+            try {
+                const payload = {};
+                for (let day of ['senin', 'selasa', 'rabu', 'kamis', 'jumat', 'sabtu', 'minggu']) {
+                    const raw = this.scheduleForm[day] || 'rest';
+                    payload[day] = raw.split(',').map(s => s.trim().toLowerCase()).filter(s => s.length > 0);
+                    if (payload[day].length === 0) payload[day] = ['rest'];
+                }
+                const res = await fetch('/api/schedule', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await res.json();
+                if (result.status === 'success') {
+                    alert("Jadwal mingguan berhasil diperbarui!");
+                    this.showScheduleModal = false;
+                    this.loadSchedule();
+                } else {
+                    alert("Gagal menyimpan jadwal!");
+                }
+            } catch(e) {
+                alert("Error saat menyimpan jadwal!");
+            }
+        },
+
         async loadHistory() {
             try {
                 const response = await fetch('/api/history');

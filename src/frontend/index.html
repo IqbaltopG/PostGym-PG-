@@ -63,13 +63,42 @@
             </div>
         </div>
 
+        <!-- SCHEDULE SETTINGS MODAL POPUP -->
+        <div x-show="showScheduleModal" x-transition.opacity style="position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 999; display: flex; align-items: center; justify-content: center; padding: 20px;">
+            <div class="schedule-card" @click.away="showScheduleModal = false" style="max-width: 440px; width: 100%; max-height: 85vh; overflow-y: auto; border: 1px solid var(--primary); box-shadow: 0 0 25px rgba(187,134,252,0.25);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 8px;">
+                    <h2 style="font-size: 1.15rem; color: var(--primary); margin: 0;">⚙️ Atur Jadwal Mingguan</h2>
+                    <button @click="showScheduleModal = false" style="background: none; border: none; color: #aaa; font-size: 1.5rem; cursor: pointer;">&times;</button>
+                </div>
+                
+                <p style="font-size: 0.8rem; color: #aaa; margin-bottom: 15px;">Ketik grup otot (pisahkan dengan koma), atau ketik <code>rest</code> jika hari istirahat.</p>
+                
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <template x-for="day in ['senin', 'selasa', 'rabu', 'kamis', 'jumat', 'sabtu', 'minggu']" :key="day">
+                        <div>
+                            <label style="display: block; font-size: 0.82rem; font-weight: bold; color: var(--accent); margin-bottom: 3px; text-transform: capitalize;" x-text="day"></label>
+                            <input type="text" x-model="scheduleForm[day]" style="width: 100%; padding: 8px 10px; background: #222; border: 1px solid #444; border-radius: 6px; color: #fff; font-size: 0.85rem;" placeholder="contoh: chest, triceps, shoulders">
+                        </div>
+                    </template>
+                </div>
+
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button class="btn-primary" @click="saveScheduleForm()" style="flex: 1; padding: 10px; background: var(--primary); color: #000;">💾 Simpan</button>
+                    <button @click="showScheduleModal = false" style="padding: 10px 15px; background: #2a2a2a; color: #fff; border: 1px solid #444; border-radius: 8px; cursor: pointer;">Batal</button>
+                </div>
+            </div>
+        </div>
+
         <!-- MAIN CONTENT AREA -->
         <main class="content-area">
             
             <!-- TAB 1: JADWAL -->
             <div x-show="activeTab === 'jadwal'" class="tab-pane" x-transition>
                 <div class="schedule-card">
-                    <h2 class="section-title">Jadwal Hari Ini: <span class="highlight" x-text="todaySchedule.name"></span></h2>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">
+                        <h2 style="font-size: 1.1rem; margin: 0;">Jadwal Hari Ini: <span class="highlight" x-text="todaySchedule.name"></span></h2>
+                        <button @click="openScheduleModal()" style="background: rgba(187,134,252,0.15); border: 1px solid var(--primary); color: var(--primary); padding: 5px 12px; border-radius: 6px; font-size: 0.8rem; cursor: pointer; font-weight: bold;">⚙️ Atur</button>
+                    </div>
                     
                     <ul class="exercise-list">
                         <template x-for="exercise in todaySchedule.exercises" :key="exercise.name">
