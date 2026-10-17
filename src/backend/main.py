@@ -389,6 +389,10 @@ CANONICAL_MAP = {
     "patah_leher": "skullcrusher",
     "skal_kraser": "skullcrusher",
     "skullcrusher": "skullcrusher",
+    "skull_crusher": "skullcrusher",
+    "skull_crushers": "skullcrusher",
+    "barbell_skullcrusher": "skullcrusher",
+    "dumbbell_skullcrusher": "skullcrusher",
     "jm_press": "jm_press",
     "tekuk_pergelangan_tangan": "wrist_curl",
     "forearm_curl": "wrist_curl",
@@ -397,9 +401,60 @@ CANONICAL_MAP = {
     "curl": "wrist_curl",
 }
 
-def normalize_canonical(raw_canonical: str) -> str:
-    cleaned = re.sub(r'[^a-z0-9_]', '', raw_canonical.lower().strip().replace(' ', '_'))
-    return CANONICAL_MAP.get(cleaned, cleaned)
+EXERCISE_MUSCLE_MAP = {
+    "skullcrusher": "arms",
+    "jm_press": "arms",
+    "tricep_pushdown": "arms",
+    "single_arm_tricep_pushdown": "arms",
+    "overhead_tricep_extension": "arms",
+    "bicep_curl": "arms",
+    "hammer_curl": "arms",
+    "preacher_curl": "arms",
+    "wrist_curl": "arms",
+    "incline_chest_press": "chest",
+    "barbell_bench_press": "chest",
+    "incline_dumbbell_press": "chest",
+    "pec_deck": "chest",
+    "push_up": "chest",
+    "dips": "chest",
+    "lat_pulldown": "back",
+    "seated_row": "back",
+    "barbell_row": "back",
+    "pull_up": "back",
+    "deadlift": "back",
+    "romanian_deadlift": "back",
+    "t_bar_row": "back",
+    "barbell_squat": "legs",
+    "leg_press": "legs",
+    "leg_extension": "legs",
+    "leg_curl": "legs",
+    "hip_thrust": "legs",
+    "hip_abduction": "legs",
+    "hip_adduction": "legs",
+    "bulgarian_split_squat": "legs",
+    "calf_raise": "legs",
+    "lateral_raise": "shoulders",
+    "dumbbell_shoulder_press": "shoulders",
+    "overhead_press": "shoulders",
+    "reverse_fly": "shoulders",
+    "face_pull": "shoulders",
+    "dumbbell_shrug": "shoulders",
+    "hanging_leg_raise": "core",
+    "ab_wheel": "core",
+    "plank": "core",
+}
+
+def normalize_canonical(raw_canonical: str, raw_name: str = "") -> str:
+    cleaned_c = re.sub(r'[^a-z0-9_]', '', raw_canonical.lower().strip().replace(' ', '_'))
+    cleaned_n = re.sub(r'[^a-z0-9_]', '', raw_name.lower().strip().replace(' ', '_')) if raw_name else ""
+    
+    # 1. Cek dari nama gerakan terlebih dahulu jika cocok dengan kamus
+    if cleaned_n and cleaned_n in CANONICAL_MAP:
+        return CANONICAL_MAP[cleaned_n]
+    # 2. Cek dari canonical hasil output model
+    if cleaned_c in CANONICAL_MAP:
+        return CANONICAL_MAP[cleaned_c]
+    return cleaned_c
 
 @app.post("/api/parse")
 async def parse_log(request: ParseRequest):
@@ -488,8 +543,15 @@ Aturan:
                 unique_ex = []
                 for ex in session.get("exercises", []):
                     raw_c = ex.get("canonical", "")
-                    normalized_c = normalize_canonical(raw_c)
+                    raw_n = ex.get("name", "")
+                    normalized_c = normalize_canonical(raw_c, raw_n)
                     ex["canonical"] = normalized_c
+
+                    # Perbaiki muscle_group jika salah klasifikasi
+                    if normalized_c in EXERCISE_MUSCLE_MAP:
+                        cur_mg = session.get("muscle_group", "").lower()
+                        if cur_mg in ["body_part_exercises", "body_part_exercise", "other", ""] or (normalized_c in ["skullcrusher", "jm_press"] and cur_mg == "shoulders"):
+                            session["muscle_group"] = EXERCISE_MUSCLE_MAP[normalized_c]
                     
                     # Validasi set: pastikan weight dan reps valid angka
                     clean_sets = []
