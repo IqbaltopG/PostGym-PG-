@@ -129,8 +129,8 @@ class PoseAnalyzer:
                         if person_confs[idx] > 0.4:
                             cv2.circle(frame, (int(x), int(y)), 5, (0, 255, 255), -1)
 
-                    # --- LOGIKA SQUAT ---
-                    if exercise.lower() == "squat":
+                    # --- LOGIKA SQUAT & LUNGES ---
+                    if exercise.lower() in ["squat", "lunge", "lunges", "bulgarian_split_squat", "split_squat"]:
                         # Tentukan sisi kiri vs kanan berdasarkan rata-rata confidence
                         left_conf = (person_confs[11] + person_confs[13] + person_confs[15]) / 3.0
                         right_conf = (person_confs[12] + person_confs[14] + person_confs[16]) / 3.0
@@ -171,7 +171,7 @@ class PoseAnalyzer:
                                 else:
                                     shallow_reps += 1
                                     depth_status = "SHALLOW"
-                                    current_feedback = f"REP {total_reps}: KURANG TURUN (HALF SQUAT)"
+                                    current_feedback = f"REP {total_reps}: KURANG TURUN"
 
                                 rep_details.append({
                                     "rep": total_reps,
@@ -181,6 +181,97 @@ class PoseAnalyzer:
 
                                 state = "UP"
                                 min_angle_in_rep = 180.0
+
+                    # --- LOGIKA LEG EXTENSION (QUADS) ---
+                    elif "extension" in exercise.lower() or "leg_ext" in exercise.lower():
+                        left_conf = (person_confs[11] + person_confs[13] + person_confs[15]) / 3.0
+                        right_conf = (person_confs[12] + person_confs[14] + person_confs[16]) / 3.0
+                        if left_conf >= right_conf and left_conf > 0.4:
+                            hip, knee, ankle = person_kpts[11], person_kpts[13], person_kpts[15]
+                        elif right_conf > 0.4:
+                            hip, knee, ankle = person_kpts[12], person_kpts[14], person_kpts[16]
+                        else:
+                            hip = knee = ankle = None
+
+                        if hip is not None and knee is not None and ankle is not None:
+                            current_angle = self.calculate_angle(hip, knee, ankle)
+                            angle_point = (int(knee[0]), int(knee[1]))
+
+                            if current_angle > 115.0 and state in ["START", "DOWN"]:
+                                state = "UP"
+                                max_angle_in_rep = current_angle
+                                current_feedback = "TENDANG KE ATAS..."
+                            elif state == "UP":
+                                if current_angle > max_angle_in_rep:
+                                    max_angle_in_rep = current_angle
+                                if max_angle_in_rep >= 150.0:
+                                    current_feedback = "KONTRAKSI QUADS PENUH (LOCKOUT)"
+                                else:
+                                    current_feedback = "LURUSKAN KAKI LEBIH TINGGI..."
+
+                                if current_angle <= 100.0:
+                                    total_reps += 1
+                                    is_valid = max_angle_in_rep >= 150.0
+                                    if is_valid:
+                                        valid_reps += 1
+                                        current_feedback = f"REP {total_reps}: EKSTENSI LURUS VALID"
+                                    else:
+                                        shallow_reps += 1
+                                        current_feedback = f"REP {total_reps}: BELUM FULL LOCKOUT"
+
+                                    rep_details.append({
+                                        "rep": total_reps,
+                                        "min_angle": round(float(max_angle_in_rep), 1),
+                                        "depth": "VALID" if is_valid else "SHALLOW"
+                                    })
+                                    state = "DOWN"
+                                    max_angle_in_rep = 0.0
+
+                    # --- LOGIKA ROMANIAN DEADLIFT / RDL (HIP HINGE - HAMSTRINGS & GLUTES) ---
+                    elif "rdl" in exercise.lower() or "deadlift" in exercise.lower():
+                        left_conf = (person_confs[5] + person_confs[11] + person_confs[13]) / 3.0
+                        right_conf = (person_confs[6] + person_confs[12] + person_confs[14]) / 3.0
+                        if left_conf >= right_conf and left_conf > 0.4:
+                            sh, hip, knee = person_kpts[5], person_kpts[11], person_kpts[13]
+                        elif right_conf > 0.4:
+                            sh, hip, knee = person_kpts[6], person_kpts[12], person_kpts[14]
+                        else:
+                            sh = hip = knee = None
+
+                        if sh is not None and hip is not None and knee is not None:
+                            current_angle = self.calculate_angle(sh, hip, knee)
+                            angle_point = (int(hip[0]), int(hip[1]))
+
+                            if current_angle < 135.0 and state in ["START", "UP"]:
+                                state = "HINGE"
+                                min_angle_in_rep = current_angle
+                                current_feedback = "HINGE: DORONG PINGGUL KE BELAKANG..."
+                            elif state == "HINGE":
+                                if current_angle < min_angle_in_rep:
+                                    min_angle_in_rep = current_angle
+
+                                if min_angle_in_rep <= 105.0:
+                                    current_feedback = "REGANGAN HAMSTRING OPTIMAL"
+                                else:
+                                    current_feedback = "DORONG POKONG LEBIH MUNDUR..."
+
+                                if current_angle >= 155.0:
+                                    total_reps += 1
+                                    is_valid = min_angle_in_rep <= 110.0
+                                    if is_valid:
+                                        valid_reps += 1
+                                        current_feedback = f"REP {total_reps}: HINGE VALID (MANTAP)"
+                                    else:
+                                        shallow_reps += 1
+                                        current_feedback = f"REP {total_reps}: HINGE KURANG DALAM"
+
+                                    rep_details.append({
+                                        "rep": total_reps,
+                                        "min_angle": round(float(min_angle_in_rep), 1),
+                                        "depth": "VALID" if is_valid else "SHALLOW"
+                                    })
+                                    state = "UP"
+                                    min_angle_in_rep = 180.0
 
                     # --- LOGIKA PUSH UP ---
                     elif exercise.lower() == "push_up":
@@ -332,10 +423,12 @@ class PoseAnalyzer:
 
             # Indikator Sudut di titik sendi
             if current_angle is not None and angle_point is not None:
-                if "tricep" in exercise.lower():
+                if "tricep" in exercise.lower() or "extension" in exercise.lower():
                     angle_color = (0, 255, 0) if current_angle >= 150.0 else (0, 165, 255) if current_angle > 110.0 else (255, 255, 255)
                 elif "bicep" in exercise.lower():
                     angle_color = (0, 255, 0) if current_angle <= 60.0 else (0, 165, 255) if current_angle < 115.0 else (255, 255, 255)
+                elif "rdl" in exercise.lower() or "deadlift" in exercise.lower():
+                    angle_color = (0, 255, 0) if current_angle <= 105.0 else (0, 165, 255) if current_angle < 140.0 else (255, 255, 255)
                 else:
                     angle_color = (0, 255, 0) if current_angle <= 95.0 else (0, 165, 255) if current_angle < 140 else (255, 255, 255)
 
@@ -386,6 +479,21 @@ class PoseAnalyzer:
                 overall_feedback = f"Cukup baik, namun {shallow_reps} rep masih tergolong 'half-curl'. Pastikan lengan bawah terangkat penuh mendekati bahu di puncak repetisi."
             else:
                 overall_feedback = f"Rentang gerak masih kurang ({shallow_reps} dari {total_reps} rep). Rentangkan tangan penuh di bawah dan kontraksikan bisep maksimal di atas."
+        elif "extension" in exercise.lower():
+            if accuracy >= 80.0:
+                overall_feedback = f"Luar biasa! Ekstensi paha depan (quads) terkunci lurus sempurna ({valid_reps} dari {total_reps} rep lockout >150°)."
+            else:
+                overall_feedback = f"Ekstensi quads masih kurang ({shallow_reps} dari {total_reps} rep). Tahan sebentar saat kaki lurus di atas untuk stimulasi otot maksimal."
+        elif "rdl" in exercise.lower() or "deadlift" in exercise.lower():
+            if accuracy >= 80.0:
+                overall_feedback = f"Form RDL solid! Hip hinge optimal ({valid_reps} dari {total_reps} rep) dan peregangan hamstring maksimal."
+            else:
+                overall_feedback = f"Rentang hinge masih dangkal ({shallow_reps} dari {total_reps} rep). Dorong bokong lebih ke belakang sambil menjaga punggung tetap netral."
+        elif "lunge" in exercise.lower():
+            if accuracy >= 80.0:
+                overall_feedback = f"Luar biasa! Kedalaman lunge/split squat sangat konsisten ({valid_reps} dari {total_reps} rep paha depan sejajar lantai)."
+            else:
+                overall_feedback = f"Kedalaman lunge masih dangkal ({shallow_reps} dari {total_reps} rep). Turunkan lutut belakang hingga mendekati lantai."
         elif "push_up" in exercise.lower():
             if accuracy >= 80.0:
                 overall_feedback = f"Mantap! Kedalaman push up sangat baik ({valid_reps} dari {total_reps} rep dada mendekati lantai)."

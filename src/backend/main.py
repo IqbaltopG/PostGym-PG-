@@ -654,6 +654,15 @@ def analyze_video_endpoint(
         print(f"--> [DEBUG] 3. Starting analyze_video...", flush=True)
         result = pose_analyzer_instance.analyze_video(input_path, output_path, exercise=exercise)
         print(f"--> [DEBUG] 4. Analysis complete! Result: {result}", flush=True)
+
+        # Auto-delete video mentah segera setelah analisis demi privasi & hemat ruang disk
+        try:
+            if os.path.exists(input_path):
+                os.remove(input_path)
+                print(f"--> [PRIVACY] Video mentah {input_path} berhasil dihapus otomatis.", flush=True)
+        except Exception as e:
+            print(f"--> [WARN] Gagal auto-delete video mentah {input_path}: {e}", flush=True)
+
         return result
     except Exception as e:
         print(f"--> [DEBUG] ERROR in video endpoint: {e}", flush=True)

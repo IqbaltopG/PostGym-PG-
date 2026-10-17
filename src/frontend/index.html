@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>POST GYM</title>
-    <link rel="stylesheet" href="style.css?v=6">
+    <link rel="stylesheet" href="style.css?v=7">
     <!-- App logic first, then Alpine, then Chart -->
-    <script src="app.js?v=6" defer></script>
+    <script src="app.js?v=7" defer></script>
     <script defer src="alpine.min.js"></script>
     <script defer src="chart.min.js"></script>
 </head>
@@ -240,10 +240,17 @@
                     <div style="margin-bottom: 15px;">
                         <label style="display: block; font-size: 0.82rem; font-weight: bold; color: #ddd; margin-bottom: 6px;">Pilih Jenis Gerakan:</label>
                         <select x-model="selectedVideoExercise" style="width: 100%; padding: 10px; background: #222; color: #fff; border: 1px solid var(--border); border-radius: 8px; font-size: 0.9rem;">
-                            <option value="squat">🏋️ Barbell / Bodyweight Squat (Knee Depth Check)</option>
-                            <option value="push_up">🤸 Push Up (Chest to Floor & Elbow Angle)</option>
-                            <option value="triceps_pushdown">💪 Triceps Cable Pushdown (Elbow Lockout Check)</option>
-                            <option value="bicep_curl">🦾 Bicep Curl (Full Contraction & Stretch)</option>
+                            <optgroup label="🦵 Latihan Kaki (Lower Body)">
+                                <option value="squat">🏋️ Barbell / Bodyweight Squat (Knee Depth Check)</option>
+                                <option value="lunge">🦵 Lunges / Bulgarian Split Squat (Front Knee 90°)</option>
+                                <option value="leg_extension">🦿 Leg Extension Machine (Full Quad Lockout)</option>
+                                <option value="rdl">🍑 Romanian Deadlift / RDL (Hip Hinge & Hamstring)</option>
+                            </optgroup>
+                            <optgroup label="💪 Latihan Badan Atas (Upper Body)">
+                                <option value="push_up">🤸 Push Up (Chest to Floor & Elbow Angle)</option>
+                                <option value="triceps_pushdown">💪 Triceps Cable Pushdown (Elbow Lockout Check)</option>
+                                <option value="bicep_curl">🦾 Bicep Curl (Full Contraction & Stretch)</option>
+                            </optgroup>
                         </select>
                     </div>
 
