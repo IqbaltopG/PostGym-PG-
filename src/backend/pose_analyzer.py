@@ -66,8 +66,9 @@ class PoseAnalyzer:
         out = cv2.VideoWriter(temp_output_path, fourcc, fps, (width, height))
 
         # State machine pelacak repetisi
-        state = "UP"
+        state = "START"
         min_angle_in_rep = 180.0
+        max_angle_in_rep = 0.0
         total_reps = 0
         valid_reps = 0
         shallow_reps = 0
@@ -206,6 +207,98 @@ class PoseAnalyzer:
                                 state = "UP"
                                 min_angle_in_rep = 180.0
 
+                    # --- LOGIKA TRICEPS PUSHDOWN ---
+                    elif "tricep" in exercise.lower():
+                        left_conf = (person_confs[5] + person_confs[7] + person_confs[9]) / 3.0
+                        right_conf = (person_confs[6] + person_confs[8] + person_confs[10]) / 3.0
+                        if left_conf >= right_conf and left_conf > 0.4:
+                            sh, el, wr = person_kpts[5], person_kpts[7], person_kpts[9]
+                        elif right_conf > 0.4:
+                            sh, el, wr = person_kpts[6], person_kpts[8], person_kpts[10]
+                        else:
+                            sh = el = wr = None
+
+                        if sh is not None and el is not None and wr is not None:
+                            current_angle = self.calculate_angle(sh, el, wr)
+                            angle_point = (int(el[0]), int(el[1]))
+
+                            if current_angle > 115.0 and state in ["START", "UP"]:
+                                state = "DOWN"
+                                max_angle_in_rep = current_angle
+                                current_feedback = "DORONG KE BAWAH..."
+                            elif state == "DOWN":
+                                if current_angle > max_angle_in_rep:
+                                    max_angle_in_rep = current_angle
+
+                                if max_angle_in_rep >= 150.0:
+                                    current_feedback = "LOCKOUT TERCAPAI (KONTRAKSI PENUH)"
+                                else:
+                                    current_feedback = "KUNCI LENGAN LEBIH LURUS..."
+
+                                if current_angle <= 95.0:
+                                    total_reps += 1
+                                    is_valid = max_angle_in_rep >= 150.0
+                                    if is_valid:
+                                        valid_reps += 1
+                                        current_feedback = f"REP {total_reps}: LOCKOUT VALID (MANTAP)"
+                                    else:
+                                        shallow_reps += 1
+                                        current_feedback = f"REP {total_reps}: BELUM FULL LOCKOUT"
+
+                                    rep_details.append({
+                                        "rep": total_reps,
+                                        "min_angle": round(float(max_angle_in_rep), 1),
+                                        "depth": "VALID" if is_valid else "SHALLOW"
+                                    })
+                                    state = "UP"
+                                    max_angle_in_rep = 0.0
+
+                    # --- LOGIKA BICEP CURL ---
+                    elif "bicep" in exercise.lower():
+                        left_conf = (person_confs[5] + person_confs[7] + person_confs[9]) / 3.0
+                        right_conf = (person_confs[6] + person_confs[8] + person_confs[10]) / 3.0
+                        if left_conf >= right_conf and left_conf > 0.4:
+                            sh, el, wr = person_kpts[5], person_kpts[7], person_kpts[9]
+                        elif right_conf > 0.4:
+                            sh, el, wr = person_kpts[6], person_kpts[8], person_kpts[10]
+                        else:
+                            sh = el = wr = None
+
+                        if sh is not None and el is not None and wr is not None:
+                            current_angle = self.calculate_angle(sh, el, wr)
+                            angle_point = (int(el[0]), int(el[1]))
+
+                            if current_angle < 115.0 and state in ["START", "DOWN"]:
+                                state = "UP"
+                                min_angle_in_rep = current_angle
+                                current_feedback = "ANGKAT KE ATAS..."
+                            elif state == "UP":
+                                if current_angle < min_angle_in_rep:
+                                    min_angle_in_rep = current_angle
+
+                                if min_angle_in_rep <= 60.0:
+                                    current_feedback = "KONTRAKSI BISEP OPTIMAL"
+                                else:
+                                    current_feedback = "TARIK SEDIKIT LEBIH TINGGI..."
+
+                                if current_angle >= 145.0:
+                                    total_reps += 1
+                                    is_valid = min_angle_in_rep <= 60.0
+                                    if is_valid:
+                                        valid_reps += 1
+                                        current_feedback = f"REP {total_reps}: CURL VALID"
+                                    else:
+                                        shallow_reps += 1
+                                        current_feedback = f"REP {total_reps}: KURANG NAIK (HALF CURL)"
+
+                                    rep_details.append({
+                                        "rep": total_reps,
+                                        "min_angle": round(float(min_angle_in_rep), 1),
+                                        "depth": "VALID" if is_valid else "SHALLOW"
+                                    })
+                                    state = "DOWN"
+                                    min_angle_in_rep = 180.0
+
             # --- RENDER HUD TELEMETRI ---
             # Header Bar Transparan
             hud_bg = frame.copy()
@@ -227,7 +320,13 @@ class PoseAnalyzer:
 
             # Indikator Sudut di titik sendi
             if current_angle is not None and angle_point is not None:
-                angle_color = (0, 255, 0) if current_angle <= 95.0 else (0, 165, 255) if current_angle < 140 else (255, 255, 255)
+                if "tricep" in exercise.lower():
+                    angle_color = (0, 255, 0) if current_angle >= 150.0 else (0, 165, 255) if current_angle > 110.0 else (255, 255, 255)
+                elif "bicep" in exercise.lower():
+                    angle_color = (0, 255, 0) if current_angle <= 60.0 else (0, 165, 255) if current_angle < 115.0 else (255, 255, 255)
+                else:
+                    angle_color = (0, 255, 0) if current_angle <= 95.0 else (0, 165, 255) if current_angle < 140 else (255, 255, 255)
+
                 cv2.circle(frame, angle_point, 18, angle_color, 2)
                 cv2.putText(frame, f"{int(current_angle)} deg", (angle_point[0] + 15, angle_point[1] - 10),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.65, angle_color, 2, cv2.LINE_AA)
@@ -260,13 +359,33 @@ class PoseAnalyzer:
         # Evaluasi Saran / Feedback Keseluruhan
         accuracy = (valid_reps / total_reps * 100.0) if total_reps > 0 else 0.0
         if total_reps == 0:
-            overall_feedback = "Tidak terdeteksi repetisi penuh. Pastikan seluruh tubuh (dari pinggul sampai telapak kaki) terlihat jelas di kamera."
-        elif accuracy >= 80.0:
-            overall_feedback = f"Luar biasa! Form latihan sangat solid ({valid_reps} dari {total_reps} rep mencapai kedalaman optimal di bawah 95°)."
-        elif accuracy >= 50.0:
-            overall_feedback = f"Cukup bagus, namun {shallow_reps} repetisi masih tergolong 'Half Squat'. Fokus dorong pinggul sedikit lebih rendah hingga sejajar lutut."
-        else:
-            overall_feedback = f"Kedalaman squat masih kurang ({shallow_reps} dari {total_reps} rep belum cukup turun). Coba kurangi beban sedikit untuk memprioritaskan full range of motion."
+            overall_feedback = "Tidak terdeteksi repetisi penuh. Pastikan sendi yang dilatih terlihat jelas di kamera."
+        elif "tricep" in exercise.lower():
+            if accuracy >= 80.0:
+                overall_feedback = f"Eksekusi luar biasa! Lockout trisep sangat penuh dan konsisten ({valid_reps} dari {total_reps} rep mencapai ekstensi >150°)."
+            elif accuracy >= 50.0:
+                overall_feedback = f"Bagus, tapi {shallow_reps} repetisi belum full lockout. Kunci siku di samping badan dan dorong hingga lengan lurus sempurna di titik terbawah."
+            else:
+                overall_feedback = f"Banyak repetisi terpotong ({shallow_reps} dari {total_reps} rep belum lurus). Coba kurangi beban kabel agar bisa mengunci siku (lockout) maksimal."
+        elif "bicep" in exercise.lower():
+            if accuracy >= 80.0:
+                overall_feedback = f"Form bicep curl sangat bagus ({valid_reps} dari {total_reps} rep mencapai puncak kontraksi tanpa ego lifting)."
+            elif accuracy >= 50.0:
+                overall_feedback = f"Cukup baik, namun {shallow_reps} rep masih tergolong 'half-curl'. Pastikan lengan bawah terangkat penuh mendekati bahu di puncak repetisi."
+            else:
+                overall_feedback = f"Rentang gerak masih kurang ({shallow_reps} dari {total_reps} rep). Rentangkan tangan penuh di bawah dan kontraksikan bisep maksimal di atas."
+        elif "push_up" in exercise.lower():
+            if accuracy >= 80.0:
+                overall_feedback = f"Mantap! Kedalaman push up sangat baik ({valid_reps} dari {total_reps} rep dada mendekati lantai)."
+            else:
+                overall_feedback = f"Form push up masih perlu ditingkatkan ({shallow_reps} dari {total_reps} rep kurang turun). Turunkan dada hingga siku membentuk 90°."
+        else: # squat
+            if accuracy >= 80.0:
+                overall_feedback = f"Luar biasa! Form latihan sangat solid ({valid_reps} dari {total_reps} rep mencapai kedalaman optimal di bawah 95°)."
+            elif accuracy >= 50.0:
+                overall_feedback = f"Cukup bagus, namun {shallow_reps} repetisi masih tergolong 'Half Squat'. Fokus dorong pinggul sedikit lebih rendah hingga sejajar lutut."
+            else:
+                overall_feedback = f"Kedalaman squat masih kurang ({shallow_reps} dari {total_reps} rep belum cukup turun). Coba kurangi beban sedikit untuk memprioritaskan full range of motion."
 
         return {
             "status": "success",
