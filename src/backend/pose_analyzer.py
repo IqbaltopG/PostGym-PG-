@@ -533,6 +533,47 @@ class PoseAnalyzer:
                                     state = "CLOSED"
                                     max_angle_in_rep = 0.0
 
+                    # --- LOGIKA ADDUCTOR / HIP ADDUCTION (JEPIT PAHA DALAM) ---
+                    elif "adduct" in exercise.lower() or "jepit" in exercise.lower():
+                        if (person_confs[11] > 0.35 and person_confs[12] > 0.35 and 
+                            person_confs[13] > 0.35 and person_confs[14] > 0.35):
+                            mid_hip = ((person_kpts[11][0] + person_kpts[12][0]) / 2.0, (person_kpts[11][1] + person_kpts[12][1]) / 2.0)
+                            current_angle = self.calculate_angle(person_kpts[13], mid_hip, person_kpts[14])
+                            angle_point = (int(mid_hip[0]), int(mid_hip[1]))
+
+                            # Posisi paha terbuka lebar (>= 65°) -> Menjepit ke dalam (< 60°)
+                            if current_angle < 60.0 and state in ["START", "OPEN"]:
+                                state = "CLOSING"
+                                min_angle_in_rep = current_angle
+                                current_feedback = "JEPIT PAHA KE DALAM..."
+                            elif state == "CLOSING":
+                                if current_angle < min_angle_in_rep:
+                                    min_angle_in_rep = current_angle
+
+                                if min_angle_in_rep <= 45.0:
+                                    current_feedback = "JEPITAN PENUH (KONTRAKSI OPTIMAL)"
+                                else:
+                                    current_feedback = "RAPATKAN LEBIH DALAM..."
+
+                                # Kembali membuka ke samping (>= 65°)
+                                if current_angle >= 65.0:
+                                    total_reps += 1
+                                    is_valid = min_angle_in_rep <= 45.0
+                                    if is_valid:
+                                        valid_reps += 1
+                                        current_feedback = f"REP {total_reps}: ADDUCTION VALID"
+                                    else:
+                                        shallow_reps += 1
+                                        current_feedback = f"REP {total_reps}: KURANG RAPAT"
+
+                                    rep_details.append({
+                                        "rep": total_reps,
+                                        "min_angle": round(float(min_angle_in_rep), 1),
+                                        "depth": "VALID" if is_valid else "SHALLOW"
+                                    })
+                                    state = "OPEN"
+                                    min_angle_in_rep = 180.0
+
                     # --- LOGIKA BACK EXTENSION / HYPEREXTENSION ---
                     elif "back_ext" in exercise.lower() or "hyperextension" in exercise.lower():
                         left_conf = (person_confs[5] + person_confs[11] + person_confs[13]) / 3.0
@@ -604,6 +645,8 @@ class PoseAnalyzer:
                     angle_color = (0, 255, 0) if current_angle >= 150.0 else (0, 165, 255) if current_angle > 110.0 else (255, 255, 255)
                 elif "abduct" in exercise.lower() or "kangkang" in exercise.lower():
                     angle_color = (0, 255, 0) if current_angle >= 75.0 else (0, 165, 255) if current_angle > 50.0 else (255, 255, 255)
+                elif "adduct" in exercise.lower() or "jepit" in exercise.lower():
+                    angle_color = (0, 255, 0) if current_angle <= 45.0 else (0, 165, 255) if current_angle < 65.0 else (255, 255, 255)
                 elif "bicep" in exercise.lower():
                     angle_color = (0, 255, 0) if current_angle <= 60.0 else (0, 165, 255) if current_angle < 115.0 else (255, 255, 255)
                 elif "hamstring" in exercise.lower() or "leg_curl" in exercise.lower():
@@ -692,6 +735,11 @@ class PoseAnalyzer:
                 overall_feedback = f"Bukaan mesin abductor sangat lebar ({valid_reps} dari {total_reps} rep valid)! Otot gluteus medius terstimulasi sempurna."
             else:
                 overall_feedback = f"Bukaan paha masih nanggung ({shallow_reps} dari {total_reps} rep). Dorong bantalan lebih lebar ke samping."
+        elif "adduct" in exercise.lower() or "jepit" in exercise.lower():
+            if accuracy >= 80.0:
+                overall_feedback = f"Jepitan mesin adductor sangat rapat ({valid_reps} dari {total_reps} rep valid)! Otot paha bagian dalam (inner thigh) terisolasi optimal."
+            else:
+                overall_feedback = f"Jepitan paha masih kurang rapat ({shallow_reps} dari {total_reps} rep nanggung). Rapatkan kedua lutut hingga mendekat di titik puncak."
         elif "back_ext" in exercise.lower() or "hyperextension" in exercise.lower():
             if accuracy >= 80.0:
                 overall_feedback = f"Ekstensi punggung bawah solid ({valid_reps} dari {total_reps} rep lurus sempurna sejajar kaki)."
