@@ -19,6 +19,14 @@ dataset/
 # OS Files
 .DS_Store
 
+# Video Form Check (Jaga Privasi Rekaman Gym)
+src/frontend/uploads/
+src/frontend/processed/
+*.mp4
+*.mov
+*.avi
+*.mkv
+
 # Docs (jangan di-commit, kecuali README)
 *.md
 !/README.md

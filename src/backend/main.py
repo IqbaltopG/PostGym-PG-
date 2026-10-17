@@ -1,7 +1,9 @@
 import os
 import time
+import uuid
+import shutil
 from datetime import datetime
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -622,7 +624,45 @@ async def api_save_schedule(new_sched: dict):
     save_schedule(new_sched)
     return {"status": "success"}
 
-# --- SERVE FRONTEND ---
-# Serve folder frontend sebagai static files di route utama "/"
+from pose_analyzer import PoseAnalyzer
+pose_analyzer_instance = PoseAnalyzer()
+
+# --- AI VIDEO FORM CHECK ENDPOINT ---
+@app.post("/api/analyze-video")
+def analyze_video_endpoint(
+    video: UploadFile = File(...),
+    exercise: str = Form("squat")
+):
+    """Menganalisis video latihan menggunakan YOLOv8n-pose dan menghitung repetisi & kedalaman"""
+    try:
+        print(f"--> [DEBUG] 1. Upload received: {video.filename}, exercise={exercise}", flush=True)
+        uploads_dir = os.path.join(os.path.dirname(__file__), "../frontend/uploads")
+        processed_dir = os.path.join(os.path.dirname(__file__), "../frontend/processed")
+        os.makedirs(uploads_dir, exist_ok=True)
+        os.makedirs(processed_dir, exist_ok=True)
+
+        file_id = str(uuid.uuid4())[:8]
+        ext = os.path.splitext(video.filename)[1] or ".mp4"
+        input_path = os.path.join(uploads_dir, f"raw_{file_id}{ext}")
+        output_filename = f"annotated_{file_id}.mp4"
+        output_path = os.path.join(processed_dir, output_filename)
+
+        with open(input_path, "wb") as buffer:
+            shutil.copyfileobj(video.file, buffer)
+        print(f"--> [DEBUG] 2. File saved to {input_path} ({os.path.getsize(input_path)} bytes)", flush=True)
+
+        print(f"--> [DEBUG] 3. Starting analyze_video...", flush=True)
+        result = pose_analyzer_instance.analyze_video(input_path, output_path, exercise=exercise)
+        print(f"--> [DEBUG] 4. Analysis complete! Result: {result}", flush=True)
+        return result
+    except Exception as e:
+        print(f"--> [DEBUG] ERROR in video endpoint: {e}", flush=True)
+        return {"status": "error", "message": str(e)}
+
+# --- SERVE FRONTEND & PROCESSED MEDIA ---
 frontend_path = os.path.join(os.path.dirname(__file__), "../frontend")
+processed_path = os.path.join(frontend_path, "processed")
+os.makedirs(processed_path, exist_ok=True)
+
+app.mount("/processed", StaticFiles(directory=processed_path), name="processed")
 app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")

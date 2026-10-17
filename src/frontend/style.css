@@ -195,9 +195,10 @@ body.dark-theme {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    width: 30%;
-    font-size: 0.75rem;
+    flex: 1;
+    font-size: 0.72rem;
     cursor: pointer;
+    padding: 4px 2px;
 }
 
 .nav-icon {
@@ -237,3 +238,41 @@ body.dark-theme {
     padding: 20px;
     box-sizing: border-box;
 }
+
+/* Video Form AI Styles */
+.video-upload-zone {
+    border: 2px dashed #444;
+    border-radius: 12px;
+    padding: 28px 16px;
+    text-align: center;
+    background: rgba(255, 255, 255, 0.02);
+    cursor: pointer;
+    transition: all 0.25s ease;
+}
+
+.video-upload-zone.dragover {
+    border-color: var(--accent);
+    background: rgba(3, 218, 198, 0.08);
+}
+
+.metric-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin: 15px 0;
+}
+
+.metric-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 12px;
+    text-align: center;
+}
+
+.metric-value {
+    font-size: 1.6rem;
+    font-weight: bold;
+    margin-top: 4px;
+}
+

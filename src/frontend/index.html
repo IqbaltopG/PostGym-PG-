@@ -4,9 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>POST GYM</title>
-    <link rel="stylesheet" href="style.css?v=3">
+    <link rel="stylesheet" href="style.css?v=4">
     <!-- App logic first, then Alpine, then Chart -->
-    <script src="app.js?v=3" defer></script>
+    <script src="app.js?v=4" defer></script>
     <script defer src="alpine.min.js"></script>
     <script defer src="chart.min.js"></script>
 </head>
@@ -222,6 +222,128 @@
                     </div>
                     <canvas id="progressChart" style="max-height: 250px; width: 100%;"></canvas>
                 </div>
+            <!-- TAB 5: FORM AI (VIDEO POSE CHECKER) -->
+            <div x-show="activeTab === 'vision'" class="tab-pane" x-transition style="height: 100%; overflow-y: auto;">
+                <div class="schedule-card" style="margin-bottom: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 8px;">
+                        <h2 style="font-size: 1.15rem; margin: 0; color: var(--accent);">📹 AI Video Form Check</h2>
+                        <span style="font-size: 0.72rem; background: rgba(3,218,198,0.15); color: var(--accent); padding: 3px 8px; border-radius: 4px; font-weight: bold;">YOLOv8 Pose</span>
+                    </div>
+
+                    <p style="font-size: 0.82rem; color: #aaa; margin-bottom: 16px;">
+                        Upload video rekaman latihanmu untuk mendeteksi repetisi, mengecek kedalaman (depth), dan menganalisis postur secara otomatis. 100% lokal & privat!
+                    </p>
+
+                    <!-- Exercise Selection -->
+                    <div style="margin-bottom: 15px;">
+                        <label style="display: block; font-size: 0.82rem; font-weight: bold; color: #ddd; margin-bottom: 6px;">Pilih Jenis Gerakan:</label>
+                        <select x-model="selectedVideoExercise" style="width: 100%; padding: 10px; background: #222; color: #fff; border: 1px solid var(--border); border-radius: 8px; font-size: 0.9rem;">
+                            <option value="squat">🏋️ Barbell / Bodyweight Squat (Knee Depth Check)</option>
+                            <option value="push_up">🤸 Push Up (Chest to Floor & Elbow Angle)</option>
+                        </select>
+                    </div>
+
+                    <!-- Upload Dropzone -->
+                    <div 
+                        class="video-upload-zone" 
+                        :class="{ 'dragover': dragOver }"
+                        @dragover.prevent="dragOver = true"
+                        @dragleave.prevent="dragOver = false"
+                        @drop.prevent="handleVideoDrop($event)"
+                        @click="$refs.videoInput.click()">
+                        
+                        <input type="file" x-ref="videoInput" @change="handleVideoSelect($event)" accept="video/*" style="display: none;">
+                        
+                        <div x-show="!videoFile">
+                            <div style="font-size: 2.2rem; margin-bottom: 6px;">📤</div>
+                            <div style="font-size: 0.9rem; font-weight: 500; color: #eee;">Sentuh atau seret video rekaman ke sini</div>
+                            <div style="font-size: 0.75rem; color: #777; margin-top: 4px;">Mendukung format MP4, MOV, WebM (Maks. disarankan &lt; 50MB)</div>
+                        </div>
+
+                        <div x-show="videoFile">
+                            <div style="font-size: 2rem; margin-bottom: 4px;">🎬</div>
+                            <div style="font-size: 0.92rem; font-weight: bold; color: var(--accent);" x-text="videoFileName"></div>
+                            <div style="font-size: 0.8rem; color: #aaa; margin-top: 2px;" x-text="videoFileSize"></div>
+                            <button type="button" @click.stop="resetVideoAnalysis()" style="margin-top: 10px; background: rgba(255,255,255,0.08); border: 1px solid #555; color: #ddd; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; cursor: pointer;">Ganti Video</button>
+                        </div>
+                    </div>
+
+                    <!-- Analyze Button -->
+                    <button 
+                        class="btn-primary mt-4" 
+                        @click="uploadAndAnalyzeVideo()" 
+                        :disabled="!videoFile || isAnalyzingVideo"
+                        style="background: linear-gradient(90deg, var(--accent), var(--primary)); color: #000; font-weight: bold;">
+                        <span x-show="!isAnalyzingVideo">⚡ Analisis Form & Hitung Repetisi</span>
+                        <span x-show="isAnalyzingVideo">⏳ Memproses pose kerangka AI... (~10-15 dtk)</span>
+                    </button>
+
+                    <!-- Error Alert -->
+                    <div x-show="videoError" x-cloak style="margin-top: 14px; padding: 10px 14px; background: rgba(207,102,121,0.15); border: 1px solid #cf6679; border-radius: 8px; color: #ff8597; font-size: 0.85rem;" x-text="videoError"></div>
+                </div>
+
+                <!-- Analysis Results Section -->
+                <div x-show="videoResult" x-cloak class="schedule-card" style="margin-bottom: 25px; border: 1px solid var(--accent); box-shadow: 0 0 20px rgba(3,218,198,0.15);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 8px;">
+                        <h3 style="font-size: 1.1rem; margin: 0; color: #fff;">📊 Hasil Analisis Pose & Kedalaman</h3>
+                        <span style="font-size: 0.8rem; font-weight: bold; color: var(--accent); text-transform: uppercase;" x-text="videoResult?.exercise"></span>
+                    </div>
+
+                    <!-- Metric Cards -->
+                    <div class="metric-grid">
+                        <div class="metric-card">
+                            <div style="font-size: 0.75rem; color: #aaa;">TOTAL REPETISI</div>
+                            <div class="metric-value" style="color: #fff;" x-text="videoResult?.total_reps"></div>
+                        </div>
+                        <div class="metric-card">
+                            <div style="font-size: 0.75rem; color: #aaa;">AKURASI FORM</div>
+                            <div class="metric-value" :style="videoResult?.accuracy_percent >= 80 ? 'color: #03dac6;' : 'color: #ffb74d;'" x-text="videoResult?.accuracy_percent + '%'"></div>
+                        </div>
+                        <div class="metric-card" style="border-left: 3px solid #03dac6;">
+                            <div style="font-size: 0.75rem; color: #aaa;">REP VALID (FULL DEPTH)</div>
+                            <div class="metric-value" style="color: #03dac6;" x-text="videoResult?.valid_reps"></div>
+                        </div>
+                        <div class="metric-card" style="border-left: 3px solid #ffb74d;">
+                            <div style="font-size: 0.75rem; color: #aaa;">SHALLOW (HALF REP)</div>
+                            <div class="metric-value" style="color: #ffb74d;" x-text="videoResult?.shallow_reps"></div>
+                        </div>
+                    </div>
+
+                    <!-- Overall AI Advice / Feedback -->
+                    <div style="margin: 15px 0; padding: 12px; background: rgba(3,218,198,0.08); border-left: 4px solid var(--accent); border-radius: 6px;">
+                        <div style="font-size: 0.8rem; font-weight: bold; color: var(--accent); margin-bottom: 4px;">💡 EVALUASI AI:</div>
+                        <div style="font-size: 0.85rem; color: #eee; line-height: 1.4;" x-text="videoResult?.overall_feedback"></div>
+                    </div>
+
+                    <!-- Rep by Rep Breakdown -->
+                    <div x-show="videoResult?.rep_details && videoResult.rep_details.length > 0" style="margin-top: 15px;">
+                        <h4 style="font-size: 0.85rem; color: #bbb; margin-bottom: 8px;">Detail per Repetisi:</h4>
+                        <div style="display: flex; flex-direction: column; gap: 6px;">
+                            <template x-for="r in videoResult.rep_details" :key="r.rep">
+                                <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; background: #252525; border-radius: 6px; font-size: 0.82rem;">
+                                    <span>Rep <strong x-text="r.rep"></strong> (Sudut min: <span x-text="r.min_angle"></span>°)</span>
+                                    <span :style="r.depth === 'VALID' ? 'color: #03dac6; font-weight: bold;' : 'color: #ffb74d; font-weight: bold;'" x-text="r.depth === 'VALID' ? '✅ Full Depth' : '⚠️ Half Rep'"></span>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+
+                    <!-- Annotated Video Player -->
+                    <div style="margin-top: 20px;">
+                        <h4 style="font-size: 0.85rem; color: #bbb; margin-bottom: 8px;">Hasil Video dengan Tracking Pose & Telemetri HUD:</h4>
+                        <div style="border-radius: 8px; overflow: hidden; background: #000; border: 1px solid #444;">
+                            <video 
+                                :src="videoResult?.video_url" 
+                                controls 
+                                playsinline 
+                                style="width: 100%; display: block; max-height: 400px; object-fit: contain;">
+                            </video>
+                        </div>
+                        <div style="margin-top: 8px; text-align: right;">
+                            <a :href="videoResult?.video_url" download style="color: var(--accent); font-size: 0.8rem; text-decoration: none;">⬇️ Download Video Teranotasi</a>
+                        </div>
+                    </div>
+                </div>
             </div>
 
         </main>
@@ -235,6 +357,10 @@
             <button class="nav-item center-nav" :class="{ 'active': activeTab === 'log' }" @click="activeTab = 'log'">
                 <span class="nav-icon">✏️</span>
                 <span>Log AI</span>
+            </button>
+            <button class="nav-item" :class="{ 'active': activeTab === 'vision' }" @click="activeTab = 'vision'">
+                <span class="nav-icon">📹</span>
+                <span>Form AI</span>
             </button>
             <button class="nav-item" :class="{ 'active': activeTab === 'history' }" @click="activeTab = 'history'">
                 <span class="nav-icon">🕒</span>

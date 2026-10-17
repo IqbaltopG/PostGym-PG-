@@ -196,6 +196,79 @@ document.addEventListener('alpine:init', () => {
                     options: { scales: { y: { beginAtZero: true, ticks: { color: '#ccc' } }, x: { ticks: { color: '#ccc' } } }, plugins: { legend: { labels: { color: '#fff' } } } }
                 });
             } catch(e) { console.error(e); }
+        },
+
+        // --- FITUR FORM AI (VIDEO POSE ANALYZER) ---
+        selectedVideoExercise: 'squat',
+        videoFile: null,
+        videoFileName: '',
+        videoFileSize: '',
+        isAnalyzingVideo: false,
+        videoResult: null,
+        videoError: null,
+        dragOver: false,
+
+        handleVideoSelect(event) {
+            const file = event.target.files[0];
+            if (file) this.setVideoFile(file);
+        },
+
+        handleVideoDrop(event) {
+            this.dragOver = false;
+            const file = event.dataTransfer.files[0];
+            if (file) this.setVideoFile(file);
+        },
+
+        setVideoFile(file) {
+            this.videoFile = file;
+            this.videoFileName = file.name;
+            const mb = (file.size / (1024 * 1024)).toFixed(1);
+            this.videoFileSize = `${mb} MB`;
+            this.videoResult = null;
+            this.videoError = null;
+        },
+
+        resetVideoAnalysis() {
+            this.videoFile = null;
+            this.videoFileName = '';
+            this.videoFileSize = '';
+            this.videoResult = null;
+            this.videoError = null;
+        },
+
+        async uploadAndAnalyzeVideo() {
+            if (!this.videoFile) return;
+            this.isAnalyzingVideo = true;
+            this.videoError = null;
+            this.videoResult = null;
+
+            try {
+                const formData = new FormData();
+                formData.append('video', this.videoFile);
+                formData.append('exercise', this.selectedVideoExercise);
+
+                const res = await fetch('/api/analyze-video', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!res.ok) {
+                    throw new Error(`Server returned HTTP ${res.status}`);
+                }
+
+                const data = await res.json();
+                if (data.status === 'success') {
+                    this.videoResult = data;
+                } else {
+                    this.videoError = data.message || "Gagal menganalisis video!";
+                }
+            } catch (err) {
+                console.error("Error analyzing video:", err);
+                this.videoError = "Gagal memproses video: " + err.message;
+            } finally {
+                this.isAnalyzingVideo = false;
+            }
         }
     }));
 });
+
