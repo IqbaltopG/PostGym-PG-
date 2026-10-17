@@ -1,0 +1,48 @@
+{
+  "passed_tests": 8,
+  "total_tests": 8,
+  "matched_canonicals": 36,
+  "all_canonicals_tested": 36,
+  "results": [
+    {
+      "test": "Core / Descriptive",
+      "status": "PASS",
+      "missing": []
+    },
+    {
+      "test": "Chest / Slang",
+      "status": "PASS",
+      "missing": []
+    },
+    {
+      "test": "Back / Lat & Rows",
+      "status": "PASS",
+      "missing": []
+    },
+    {
+      "test": "Legs / Lower Body Slang",
+      "status": "PASS",
+      "missing": []
+    },
+    {
+      "test": "Shoulders / Raises & Press",
+      "status": "PASS",
+      "missing": []
+    },
+    {
+      "test": "Arms / Biceps & Triceps",
+      "status": "PASS",
+      "missing": []
+    },
+    {
+      "test": "Phonetic Typos",
+      "status": "PASS",
+      "missing": []
+    },
+    {
+      "test": "Compound Multipliers & Skip",
+      "status": "PASS",
+      "missing": []
+    }
+  ]
+}

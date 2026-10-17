@@ -537,9 +537,10 @@ Aturan:
             content = result.get('content', '{}')
             ai_output = json.loads(content)
             
-            # Normalisasi canonical, sanitasi set, dan deduplikasi
+            # Normalisasi canonical, sanitasi set, dan deduplikasi global
+            global_seen = set()
+            clean_sessions = []
             for session in ai_output.get("sessions", []):
-                seen = set()
                 unique_ex = []
                 for ex in session.get("exercises", []):
                     raw_c = ex.get("canonical", "")
@@ -567,11 +568,15 @@ Aturan:
                             continue
                     ex["sets"] = clean_sets
 
-                    if normalized_c not in seen and len(clean_sets) > 0:
-                        seen.add(normalized_c)
+                    if normalized_c not in global_seen and len(clean_sets) > 0:
+                        global_seen.add(normalized_c)
                         unique_ex.append(ex)
-                session["exercises"] = unique_ex
+                
+                if unique_ex:
+                    session["exercises"] = unique_ex
+                    clean_sessions.append(session)
 
+            ai_output["sessions"] = clean_sessions
             return {"status": "success", "data": ai_output}
     except Exception as e:
         return {"status": "error", "message": f"Koneksi ke AI runtime gagal ({str(e)}). Pastikan llama-server berjalan di port 8080."}
