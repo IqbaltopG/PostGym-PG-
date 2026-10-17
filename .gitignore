@@ -7,8 +7,9 @@ venv/
 gymmate.db
 src/backend/gymmate.db
 
-# LLM Models (Ukurannya raksasa, jangan di-push)
+# LLM & CV Models (Ukurannya raksasa, jangan di-push)
 models/*.gguf
+*.pt
 llama.cpp/
 
 # Dataset Latihan (Data Pribadi 100% Offline)
