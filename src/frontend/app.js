@@ -49,10 +49,7 @@ document.addEventListener('alpine:init', () => {
             localStorage.setItem('postgym_theme', this.theme);
             document.documentElement.setAttribute('data-theme', this.theme);
             document.body.className = this.theme + '-theme';
-            if (this.chartRecapInstance || this.chartProgInstance) {
-                this.fetchRecap();
-                this.fetchProgress();
-            }
+            this.updateChartThemes();
         },
 
         async init() {
@@ -458,6 +455,39 @@ document.addEventListener('alpine:init', () => {
         exerciseList: [],
         chartRecapInstance: null,
         chartProgInstance: null,
+        recapTimer: null,
+        isFetchingRecap: false,
+        isFetchingProgress: false,
+
+        updateChartThemes() {
+            const isDark = this.theme === 'dark';
+            const gridColor = isDark ? '#27272a' : '#e4e4e7';
+            const textColor = isDark ? '#a1a1aa' : '#52525b';
+            const titleColor = isDark ? '#fafafa' : '#09090b';
+
+            if (this.chartRecapInstance) {
+                try {
+                    this.chartRecapInstance.options.scales.x.ticks.color = textColor;
+                    this.chartRecapInstance.options.scales.y.ticks.color = textColor;
+                    this.chartRecapInstance.options.scales.y.grid.color = gridColor;
+                    this.chartRecapInstance.options.plugins.legend.labels.color = titleColor;
+                    this.chartRecapInstance.update('none');
+                } catch(e) { console.error("Error updating recap chart theme:", e); }
+            }
+
+            if (this.chartProgInstance) {
+                try {
+                    this.chartProgInstance.options.scales.x.ticks.color = textColor;
+                    this.chartProgInstance.options.scales.y.ticks.color = textColor;
+                    this.chartProgInstance.options.scales.y.grid.color = gridColor;
+                    this.chartProgInstance.options.plugins.legend.labels.color = titleColor;
+                    if (this.chartProgInstance.data.datasets && this.chartProgInstance.data.datasets[0]) {
+                        this.chartProgInstance.data.datasets[0].backgroundColor = isDark ? 'rgba(34, 197, 94, 0.12)' : 'rgba(34, 197, 94, 0.18)';
+                    }
+                    this.chartProgInstance.update('none');
+                } catch(e) { console.error("Error updating progress chart theme:", e); }
+            }
+        },
 
         async initCharts() {
             if (this.exerciseList.length === 0) {
@@ -466,10 +496,16 @@ document.addEventListener('alpine:init', () => {
                     this.exerciseList = await res.json();
                 } catch(e) { console.error(e); }
             }
-            setTimeout(() => this.fetchRecap(), 100);
+            if (this.recapTimer) clearTimeout(this.recapTimer);
+            this.recapTimer = setTimeout(() => {
+                this.fetchRecap();
+                if (this.selectedExercise) this.fetchProgress();
+            }, 60);
         },
 
         async fetchRecap() {
+            if (this.isFetchingRecap) return;
+            this.isFetchingRecap = true;
             try {
                 const res = await fetch('/api/progress/recap?period=' + this.recapPeriod);
                 const data = await res.json();
@@ -481,10 +517,33 @@ document.addEventListener('alpine:init', () => {
                 const textColor = isDark ? '#a1a1aa' : '#52525b';
                 const titleColor = isDark ? '#fafafa' : '#09090b';
 
-                if(this.chartRecapInstance) this.chartRecapInstance.destroy();
                 const canvas = document.getElementById('recapChart');
                 if (!canvas) return;
+
+                // Jika chart sudah ada dan terikat ke canvas, update saja datanya agar tidak ada double render!
+                const existing = typeof Chart !== 'undefined' ? Chart.getChart(canvas) : null;
+                if (this.chartRecapInstance && existing) {
+                    this.chartRecapInstance.data.labels = labels;
+                    this.chartRecapInstance.data.datasets[0].data = values;
+                    this.chartRecapInstance.options.scales.x.ticks.color = textColor;
+                    this.chartRecapInstance.options.scales.y.ticks.color = textColor;
+                    this.chartRecapInstance.options.scales.y.grid.color = gridColor;
+                    this.chartRecapInstance.options.plugins.legend.labels.color = titleColor;
+                    this.chartRecapInstance.update();
+                    return;
+                }
+
+                if (existing) {
+                    existing.destroy();
+                }
+                if (this.chartRecapInstance) {
+                    try { this.chartRecapInstance.destroy(); } catch(e){}
+                    this.chartRecapInstance = null;
+                }
+
                 const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
                 this.chartRecapInstance = new Chart(ctx, {
                     type: 'bar',
                     data: {
@@ -499,21 +558,55 @@ document.addEventListener('alpine:init', () => {
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
-                        scales: {
-                            y: { beginAtZero: true, grid: { color: gridColor }, ticks: { color: textColor } },
-                            x: { grid: { display: false }, ticks: { color: textColor } }
+                        animation: {
+                            duration: 350
                         },
-                        plugins: { legend: { labels: { color: titleColor, font: { family: 'inherit' } } } }
+                        scales: {
+                            y: { 
+                                beginAtZero: true, 
+                                grid: { color: gridColor }, 
+                                ticks: { 
+                                    color: textColor,
+                                    precision: 0 
+                                } 
+                            },
+                            x: { 
+                                grid: { display: false }, 
+                                ticks: { color: textColor } 
+                            }
+                        },
+                        plugins: { 
+                            legend: { 
+                                labels: { 
+                                    color: titleColor, 
+                                    font: { family: 'inherit' } 
+                                } 
+                            } 
+                        }
                     }
                 });
-            } catch(e) { console.error(e); }
+            } catch(e) { 
+                console.error("Error fetchRecap:", e); 
+            } finally {
+                this.isFetchingRecap = false;
+            }
         },
 
         async fetchProgress() {
-            if(!this.selectedExercise) {
-                if(this.chartProgInstance) this.chartProgInstance.destroy();
+            const canvas = document.getElementById('progressChart');
+            if (!this.selectedExercise) {
+                if (canvas && typeof Chart !== 'undefined') {
+                    const existing = Chart.getChart(canvas);
+                    if (existing) existing.destroy();
+                }
+                if (this.chartProgInstance) {
+                    try { this.chartProgInstance.destroy(); } catch(e){}
+                    this.chartProgInstance = null;
+                }
                 return;
             }
+            if (this.isFetchingProgress) return;
+            this.isFetchingProgress = true;
             try {
                 const res = await fetch('/api/progress/exercise/' + this.selectedExercise);
                 const data = await res.json();
@@ -525,10 +618,34 @@ document.addEventListener('alpine:init', () => {
                 const textColor = isDark ? '#a1a1aa' : '#52525b';
                 const titleColor = isDark ? '#fafafa' : '#09090b';
 
-                if(this.chartProgInstance) this.chartProgInstance.destroy();
-                const canvas = document.getElementById('progressChart');
                 if (!canvas) return;
+
+                const existing = typeof Chart !== 'undefined' ? Chart.getChart(canvas) : null;
+                if (this.chartProgInstance && existing) {
+                    this.chartProgInstance.data.labels = labels;
+                    this.chartProgInstance.data.datasets[0].data = values;
+                    if (this.chartProgInstance.data.datasets[0]) {
+                        this.chartProgInstance.data.datasets[0].backgroundColor = isDark ? 'rgba(34, 197, 94, 0.12)' : 'rgba(34, 197, 94, 0.18)';
+                    }
+                    this.chartProgInstance.options.scales.x.ticks.color = textColor;
+                    this.chartProgInstance.options.scales.y.ticks.color = textColor;
+                    this.chartProgInstance.options.scales.y.grid.color = gridColor;
+                    this.chartProgInstance.options.plugins.legend.labels.color = titleColor;
+                    this.chartProgInstance.update();
+                    return;
+                }
+
+                if (existing) {
+                    existing.destroy();
+                }
+                if (this.chartProgInstance) {
+                    try { this.chartProgInstance.destroy(); } catch(e){}
+                    this.chartProgInstance = null;
+                }
+
                 const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
                 this.chartProgInstance = new Chart(ctx, {
                     type: 'line',
                     data: {
@@ -547,6 +664,9 @@ document.addEventListener('alpine:init', () => {
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
+                        animation: {
+                            duration: 350
+                        },
                         scales: {
                             y: { beginAtZero: true, grid: { color: gridColor }, ticks: { color: textColor } },
                             x: { grid: { display: false }, ticks: { color: textColor } }
@@ -554,7 +674,11 @@ document.addEventListener('alpine:init', () => {
                         plugins: { legend: { labels: { color: titleColor, font: { family: 'inherit' } } } }
                     }
                 });
-            } catch(e) { console.error(e); }
+            } catch(e) { 
+                console.error("Error fetchProgress:", e); 
+            } finally {
+                this.isFetchingProgress = false;
+            }
         },
 
         // --- 8. AI VIDEO POSE FORM CHECKER (PRO TIER) ---
