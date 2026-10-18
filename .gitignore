@@ -30,3 +30,11 @@ src/frontend/processed/
 # Docs (jangan di-commit, kecuali README)
 *.md
 !/README.md
+
+# Tests & Internal Scratch (Privasi development lokal)
+tests/
+test_*.py
+scratch/
+validation_results.json
+*.log
+

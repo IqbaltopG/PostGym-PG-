@@ -142,18 +142,6 @@ Akses aplikasi di browser:
 
 ---
 
-## Pengujian Otomatis (Integration Tests)
-
-Seluruh endpoint backend, validasi akun Mullvad, voucher, logger, rank points, dan ekspor data diuji secara menyeluruh melalui test suite:
-
-```bash
-python3 tests/test_all_endpoints.py
-```
-
-Semua 11 skenario pengujian utama (Akun, Voucher, Jadwal, Quick Log, History, Double Progression, Ekspor CSV/JSON, Health Check) wajib berstatus **PASSED (100%)**.
-
----
-
 ## Struktur Direktori
 
 ```
@@ -171,8 +159,6 @@ aplikasi-gym/
 │       ├── style.css           # Design tokens, dark & light theme
 │       ├── alpine.min.js       # Framework reaktif frontend
 │       └── chart.min.js        # Rendering grafik performa
-├── tests/
-│   └── test_all_endpoints.py   # Suite uji otomatis menyeluruh
 ├── training/                   # Skrip pipeline dataset slang & fine-tuning
 ├── models/                     # Tempat model GGUF & YOLO (dikecualikan dari git)
 ├── README.md                   # Dokumentasi teknis proyek
