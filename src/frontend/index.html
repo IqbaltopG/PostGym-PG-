@@ -33,6 +33,11 @@
                     <span class="level-chip">Lv.<span x-text="todaySchedule.gamification?.level"></span></span>
                     <span class="rank-name" x-text="todaySchedule.gamification?.title"></span>
                 </div>
+
+                <!-- THEME TOGGLE BUTTON -->
+                <button class="theme-toggle-btn" @click="toggleTheme()" :title="'Mode ' + (theme === 'dark' ? 'Terang' : 'Gelap')">
+                    <span class="theme-icon" x-text="theme === 'dark' ? '☀️' : '🌙'"></span>
+                </button>
             </div>
         </header>
 

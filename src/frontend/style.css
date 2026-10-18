@@ -4,18 +4,8 @@
    High-Contrast Typography, Large 48px+ Ergonomic Touch Targets.
    ========================================================================== */
 
+/* Base Design Tokens */
 :root {
-    --bg-base: #09090b;
-    --card-surface: #121215;
-    --card-elevated: #18181c;
-    --input-surface: #1c1c21;
-    --border-subtle: #27272a;
-    --border-hover: #3f3f46;
-    
-    --text-primary: #fafafa;
-    --text-secondary: #a1a1aa;
-    --text-muted: #71717a;
-    
     --accent-emerald: #22c55e;
     --accent-emerald-hover: #16a34a;
     --accent-emerald-light: rgba(34, 197, 94, 0.12);
@@ -36,6 +26,44 @@
     --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
 }
 
+/* Dark Theme (Default) */
+:root, body.dark-theme, [data-theme="dark"] {
+    --bg-base: #09090b;
+    --card-surface: #121215;
+    --card-elevated: #18181c;
+    --input-surface: #1c1c21;
+    --border-subtle: #27272a;
+    --border-hover: #3f3f46;
+    
+    --text-primary: #fafafa;
+    --text-secondary: #a1a1aa;
+    --text-muted: #71717a;
+    
+    --btn-primary-text: #051308;
+    --modal-bg: rgba(0, 0, 0, 0.75);
+    --bottom-nav-bg: rgba(18, 18, 21, 0.95);
+    --json-bg: #0d0d0f;
+}
+
+/* Light Theme (Clean Minimalist Apple/Zinc Style) */
+body.light-theme, [data-theme="light"] {
+    --bg-base: #f4f4f5;
+    --card-surface: #ffffff;
+    --card-elevated: #f4f4f5;
+    --input-surface: #ffffff;
+    --border-subtle: #e4e4e7;
+    --border-hover: #cbd5e1;
+    
+    --text-primary: #09090b;
+    --text-secondary: #52525b;
+    --text-muted: #71717a;
+    
+    --btn-primary-text: #ffffff;
+    --modal-bg: rgba(15, 23, 42, 0.5);
+    --bottom-nav-bg: rgba(255, 255, 255, 0.95);
+    --json-bg: #18181b;
+}
+
 /* Reset & Base Setup */
 *, *::before, *::after {
     box-sizing: border-box;
@@ -51,6 +79,11 @@ html, body {
     color: var(--text-primary);
     overflow: hidden;
     line-height: 1.5;
+    transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+.app-layout, .app-header, .exercise-card, .card-container, .modal-card, .bottom-nav, .form-input, .steppers-grid, .stepper-item, .btn-step, .stepper-display, .set-pill, .history-card, .account-badge, .gamification-badge, .today-sets-tracker, .rest-day-card, .empty-state-box {
+    transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease, box-shadow 0.25s ease;
 }
 
 .app-layout {
@@ -211,6 +244,32 @@ html, body {
     font-size: 0.72rem;
     font-weight: 700;
     color: var(--text-primary);
+}
+
+/* Theme Toggle Button */
+.theme-toggle-btn {
+    background-color: var(--card-elevated);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-primary);
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-full);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 0.95rem;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.theme-toggle-btn:hover {
+    border-color: var(--border-hover);
+    transform: rotate(15deg);
+}
+
+.theme-toggle-btn:active {
+    transform: scale(0.92);
 }
 
 /* ==========================================================================
@@ -531,7 +590,7 @@ html, body {
     width: 100%;
     min-height: 48px;
     background-color: var(--accent-emerald);
-    color: #051308;
+    color: var(--btn-primary-text);
     border: none;
     border-radius: var(--radius-md);
     font-size: 0.95rem;
@@ -1155,7 +1214,7 @@ html, body {
     bottom: 0;
     width: 100vw;
     height: 100vh;
-    background-color: rgba(0, 0, 0, 0.75);
+    background-color: var(--modal-bg);
     backdrop-filter: blur(6px);
     z-index: 999;
     display: flex;
@@ -1706,7 +1765,7 @@ html, body {
     transform: translateX(-50%);
     width: 100%;
     max-width: 720px;
-    background-color: rgba(18, 18, 21, 0.95);
+    background-color: var(--bottom-nav-bg);
     backdrop-filter: blur(12px);
     display: flex;
     justify-content: space-around;

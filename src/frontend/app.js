@@ -30,7 +30,29 @@ document.addEventListener('alpine:init', () => {
         exerciseDrafts: {}, // canonical -> { weight: X, reps: Y }
         customLog: { canonical: '', name: '', muscle_group: 'chest', weight: 20, reps: 10 },
 
+        // --- THEME (DARK / LIGHT MODE) ---
+        theme: localStorage.getItem('postgym_theme') || 'dark',
+
+        initTheme() {
+            const saved = localStorage.getItem('postgym_theme') || 'dark';
+            this.theme = saved;
+            document.documentElement.setAttribute('data-theme', saved);
+            document.body.className = saved + '-theme';
+        },
+
+        toggleTheme() {
+            this.theme = this.theme === 'dark' ? 'light' : 'dark';
+            localStorage.setItem('postgym_theme', this.theme);
+            document.documentElement.setAttribute('data-theme', this.theme);
+            document.body.className = this.theme + '-theme';
+            if (this.chartRecapInstance || this.chartProgInstance) {
+                this.fetchRecap();
+                this.fetchProgress();
+            }
+        },
+
         async init() {
+            this.initTheme();
             await this.initAccount();
             await this.loadSchedule();
             await this.loadHistory();
@@ -447,6 +469,11 @@ document.addEventListener('alpine:init', () => {
                 const labels = data.map(d => d.period);
                 const values = data.map(d => d.sessions);
                 
+                const isDark = this.theme === 'dark';
+                const gridColor = isDark ? '#27272a' : '#e4e4e7';
+                const textColor = isDark ? '#a1a1aa' : '#52525b';
+                const titleColor = isDark ? '#fafafa' : '#09090b';
+
                 if(this.chartRecapInstance) this.chartRecapInstance.destroy();
                 const canvas = document.getElementById('recapChart');
                 if (!canvas) return;
@@ -466,10 +493,10 @@ document.addEventListener('alpine:init', () => {
                         responsive: true,
                         maintainAspectRatio: false,
                         scales: {
-                            y: { beginAtZero: true, grid: { color: '#27272a' }, ticks: { color: '#a1a1aa' } },
-                            x: { grid: { display: false }, ticks: { color: '#a1a1aa' } }
+                            y: { beginAtZero: true, grid: { color: gridColor }, ticks: { color: textColor } },
+                            x: { grid: { display: false }, ticks: { color: textColor } }
                         },
-                        plugins: { legend: { labels: { color: '#fafafa', font: { family: 'inherit' } } } }
+                        plugins: { legend: { labels: { color: titleColor, font: { family: 'inherit' } } } }
                     }
                 });
             } catch(e) { console.error(e); }
@@ -486,6 +513,11 @@ document.addEventListener('alpine:init', () => {
                 const labels = data.map(d => d.date);
                 const values = data.map(d => d.max_weight);
                 
+                const isDark = this.theme === 'dark';
+                const gridColor = isDark ? '#27272a' : '#e4e4e7';
+                const textColor = isDark ? '#a1a1aa' : '#52525b';
+                const titleColor = isDark ? '#fafafa' : '#09090b';
+
                 if(this.chartProgInstance) this.chartProgInstance.destroy();
                 const canvas = document.getElementById('progressChart');
                 if (!canvas) return;
@@ -498,7 +530,7 @@ document.addEventListener('alpine:init', () => {
                             label: 'Beban Maks (kg)',
                             data: values,
                             borderColor: '#22c55e',
-                            backgroundColor: 'rgba(34, 197, 94, 0.12)',
+                            backgroundColor: isDark ? 'rgba(34, 197, 94, 0.12)' : 'rgba(34, 197, 94, 0.18)',
                             fill: true,
                             tension: 0.25,
                             pointBackgroundColor: '#22c55e',
@@ -509,10 +541,10 @@ document.addEventListener('alpine:init', () => {
                         responsive: true,
                         maintainAspectRatio: false,
                         scales: {
-                            y: { beginAtZero: true, grid: { color: '#27272a' }, ticks: { color: '#a1a1aa' } },
-                            x: { grid: { display: false }, ticks: { color: '#a1a1aa' } }
+                            y: { beginAtZero: true, grid: { color: gridColor }, ticks: { color: textColor } },
+                            x: { grid: { display: false }, ticks: { color: textColor } }
                         },
-                        plugins: { legend: { labels: { color: '#fafafa', font: { family: 'inherit' } } } }
+                        plugins: { legend: { labels: { color: titleColor, font: { family: 'inherit' } } } }
                     }
                 });
             } catch(e) { console.error(e); }
