@@ -160,7 +160,7 @@ async def get_today_plan():
             ex_data["last_sets"] = len(history["sets"])
             
             # Panggil Rule Engine (Hypertrophy Rules)
-            saran = calculate_next_target(history["sets"], rep_range=(8, 12))
+            saran = calculate_next_target(history["sets"], rep_range=(8, 12), muscle_group=mg)
             ex_data["recommendation"] = saran
             
         plan["exercises"].append(ex_data)
