@@ -3,263 +3,469 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>POST GYM</title>
-    <link rel="stylesheet" href="style.css?v=9">
-    <!-- App logic first, then Alpine, then Chart -->
-    <script src="app.js?v=9" defer></script>
+    <title>POST GYM — Offline Gym Tracker & AI Assistant</title>
+    <link rel="stylesheet" href="style.css?v=10">
+    <script src="app.js?v=10" defer></script>
     <script defer src="alpine.min.js"></script>
     <script defer src="chart.min.js"></script>
 </head>
 <body class="dark-theme">
 
-    <div id="app" x-data="gymApp()" style="display: flex; flex-direction: column; height: 100vh;">
+    <div id="app" x-data="gymApp()" class="app-layout">
         
-        <!-- HEADER -->
-        <header class="app-header" style="display: flex; justify-content: space-between; align-items: center; padding: 15px 20px;">
-            <div>
-                <h1 style="margin: 0; font-size: 1.5rem;">POST <span class="ai-badge">GYM</span></h1>
-                <div class="date-display" x-text="todayDate" style="font-size: 0.8rem; margin-top: 5px;"></div>
+        <!-- TOP APP HEADER -->
+        <header class="app-header">
+            <div class="brand-container">
+                <h1 class="brand-title">POST <span class="brand-accent">GYM</span></h1>
+                <div class="date-display" x-text="todayDate"></div>
             </div>
             
-            <!-- GAMIFICATION BADGE (CLICKABLE) -->
-            <div class="gamification-badge" x-show="todaySchedule.gamification" @click="showRankModal = true" style="text-align: right; background: rgba(3,218,198,0.1); padding: 8px 12px; border-radius: 8px; border: 1px solid var(--accent); cursor: pointer;" title="Klik untuk lihat detail rank RPG">
-                <div style="font-size: 0.75rem; color: #ccc;">Level <span x-text="todaySchedule.gamification?.level"></span> 👆</div>
-                <div style="font-weight: bold; color: var(--accent); font-size: 1rem;" x-text="todaySchedule.gamification?.title"></div>
+            <div class="header-badges">
+                <!-- ACCOUNT / PRO STATUS BADGE -->
+                <div class="account-badge" @click="showAccountModal = true" :class="account.is_pro ? 'badge-pro' : 'badge-free'" title="Klik untuk lihat Akun & Voucher">
+                    <span class="status-indicator-dot"></span>
+                    <span class="account-type-label" x-text="account.is_pro ? 'PRO ⚡' : 'FREE'"></span>
+                    <span class="account-id-snippet" x-text="account.account_id ? account.account_id.slice(5, 14) : 'Akun'"></span>
+                </div>
+
+                <!-- GAMIFICATION LEVEL BADGE -->
+                <div class="gamification-badge" x-show="todaySchedule.gamification" @click="showRankModal = true" title="Klik untuk lihat detail rank RPG">
+                    <span class="level-chip">Lv.<span x-text="todaySchedule.gamification?.level"></span></span>
+                    <span class="rank-name" x-text="todaySchedule.gamification?.title"></span>
+                </div>
             </div>
         </header>
 
-        <!-- RANK DETAILS MODAL POPUP -->
-        <div x-show="showRankModal" x-cloak class="modal-backdrop">
-            <div class="schedule-card" @click.away="showRankModal = false" style="max-width: 400px; width: 100%; border: 1px solid var(--accent); box-shadow: 0 0 25px rgba(3,218,198,0.25);">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                    <h2 style="font-size: 1.15rem; color: var(--accent); margin: 0;">🏆 Detail Rank RPG</h2>
-                    <button @click="showRankModal = false" style="background: none; border: none; color: #aaa; font-size: 1.5rem; cursor: pointer;">&times;</button>
+        <!-- MODAL 1: MULLVAD ANONYMOUS ACCOUNT & MONETIZATION -->
+        <div x-show="showAccountModal" x-cloak class="modal-backdrop">
+            <div class="modal-card" @click.away="showAccountModal = false">
+                <div class="modal-header">
+                    <div class="modal-title-wrap">
+                        <span class="modal-icon">🛡️</span>
+                        <h2>Akun & Keanggotaan</h2>
+                    </div>
+                    <button class="btn-close-modal" @click="showAccountModal = false">&times;</button>
                 </div>
-                
-                <div style="text-align: center; padding: 15px 10px; background: rgba(255,255,255,0.03); border-radius: 8px; margin-bottom: 15px;">
-                    <div style="font-size: 1.8rem; font-weight: bold; margin-bottom: 4px; color: var(--accent);" x-text="todaySchedule.gamification?.title"></div>
-                    <div style="font-size: 1rem; font-weight: bold; color: var(--primary);">Level <span x-text="todaySchedule.gamification?.level"></span></div>
-                    <div style="font-size: 0.85rem; color: #bbb; margin-top: 4px;">Total Latihan Tercatat: <strong style="color: #fff;" x-text="todaySchedule.gamification?.total_sessions"></strong> Sesi</div>
+
+                <div class="account-id-box">
+                    <div class="account-id-label">16-DIGIT ACCOUNT ID (MULLVAD STYLE)</div>
+                    <div class="account-id-value" x-text="account.account_id || 'Membuat ID...'"></div>
+                    <div class="account-id-actions">
+                        <button class="btn-copy" @click="copyAccountId()" x-text="copyTooltip">Salin ID</button>
+                    </div>
+                    <div class="privacy-note">
+                        🔒 <strong>Zero PII (100% Privat):</strong> Tanpa email, tanpa nomor HP, tanpa password. Simpan ID ini untuk akses akun di perangkat lain.
+                    </div>
+                </div>
+
+                <!-- STATUS MEMBERSHIP -->
+                <div class="membership-status-card" :class="account.is_pro ? 'status-card-pro' : 'status-card-free'">
+                    <div class="status-header">
+                        <span class="status-title" x-text="account.is_pro ? '⚡ PAKET AKTIF: POST GYM PRO' : '📦 PAKET AKTIF: FREE TIER'"></span>
+                        <span class="status-pill" x-text="account.is_pro ? 'PRO' : 'GRATIS'"></span>
+                    </div>
                     
-                    <!-- Progress Bar to Next Level -->
-                    <div style="margin: 15px 10px 6px 10px; background: #333; border-radius: 10px; height: 10px; overflow: hidden;">
-                        <div :style="'width: ' + (todaySchedule.gamification?.progress_percent || 0) + '%; height: 100%; background: linear-gradient(90deg, var(--primary), var(--accent)); transition: width 0.3s ease;'"></div>
-                    </div>
-                    <div style="font-size: 0.8rem; color: #03dac6; margin-top: 6px;">
-                        Tinggal <strong x-text="todaySchedule.gamification?.sessions_needed"></strong> sesi lagi untuk naik ke level berikutnya!
-                    </div>
-                </div>
-
-                <h3 style="font-size: 0.9rem; margin-bottom: 8px; color: #eee;">Tier Gelar Gym:</h3>
-                <ul style="list-style: none; padding: 0; margin: 0; font-size: 0.82rem; line-height: 1.9;">
-                    <li :style="todaySchedule.gamification?.level <= 2 ? 'color: var(--accent); font-weight: bold;' : 'color: #777;'">🐣 Couch Potato (Level 1–2 / 1–10 sesi)</li>
-                    <li :style="(todaySchedule.gamification?.level >= 3 && todaySchedule.gamification?.level <= 5) ? 'color: var(--accent); font-weight: bold;' : 'color: #777;'">🦍 Gym Bro (Level 3–5 / 11–25 sesi)</li>
-                    <li :style="(todaySchedule.gamification?.level >= 6 && todaySchedule.gamification?.level <= 8) ? 'color: var(--accent); font-weight: bold;' : 'color: #777;'">🦾 Iron Man (Level 6–8 / 26–40 sesi)</li>
-                    <li :style="(todaySchedule.gamification?.level >= 9 && todaySchedule.gamification?.level <= 12) ? 'color: var(--accent); font-weight: bold;' : 'color: #777;'">🔱 Poseidon (Level 9–12 / 41–60 sesi)</li>
-                    <li :style="todaySchedule.gamification?.level >= 13 ? 'color: var(--accent); font-weight: bold;' : 'color: #777;'">⚡ Greek God (Level 13+ / 61+ sesi)</li>
-                </ul>
-
-                <button class="btn-primary mt-4" @click="showRankModal = false" style="background: #2a2a2a; color: #fff; border: 1px solid #444; padding: 10px;">Tutup</button>
-            </div>
-        </div>
-
-        <!-- SCHEDULE SETTINGS MODAL POPUP -->
-        <div x-show="showScheduleModal" x-cloak class="modal-backdrop">
-            <div class="schedule-card" @click.away="showScheduleModal = false" style="max-width: 440px; width: 100%; max-height: 85vh; overflow-y: auto; border: 1px solid var(--primary); box-shadow: 0 0 25px rgba(187,134,252,0.25);">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 8px;">
-                    <h2 style="font-size: 1.15rem; color: var(--primary); margin: 0;">⚙️ Atur Jadwal Mingguan</h2>
-                    <button @click="showScheduleModal = false" style="background: none; border: none; color: #aaa; font-size: 1.5rem; cursor: pointer;">&times;</button>
-                </div>
-                
-                <p style="font-size: 0.8rem; color: #aaa; margin-bottom: 15px;">Ketik grup otot (pisahkan dengan koma), atau ketik <code>rest</code> jika hari istirahat.</p>
-                
-                <div style="display: flex; flex-direction: column; gap: 10px;">
-                    <template x-for="day in ['senin', 'selasa', 'rabu', 'kamis', 'jumat', 'sabtu', 'minggu']" :key="day">
-                        <div>
-                            <label style="display: block; font-size: 0.82rem; font-weight: bold; color: var(--accent); margin-bottom: 3px; text-transform: capitalize;" x-text="day"></label>
-                            <input type="text" x-model="scheduleForm[day]" style="width: 100%; padding: 8px 10px; background: #222; border: 1px solid #444; border-radius: 6px; color: #fff; font-size: 0.85rem;" placeholder="contoh: chest, triceps, shoulders">
+                    <template x-if="account.is_pro">
+                        <div class="status-body">
+                            <p>Masa aktif tersisa: <strong x-text="account.days_remaining"></strong> hari</p>
+                            <span class="status-sub">Akses penuh ke semua fitur AI Parser & AI Video Form Check lokal.</span>
+                        </div>
+                    </template>
+                    
+                    <template x-if="!account.is_pro">
+                        <div class="status-body">
+                            <p>Fitur Free: Jadwal, 1-Tap Quick Log, Riwayat, Grafik, & Export CSV/JSON.</p>
+                            <span class="status-sub">Upgrade ke PRO untuk membuka AI Slang Parser & Video Pose Form Check.</span>
                         </div>
                     </template>
                 </div>
 
-                <div style="display: flex; gap: 10px; margin-top: 20px;">
-                    <button class="btn-primary" @click="saveScheduleForm()" style="flex: 1; padding: 10px; background: var(--primary); color: #000;">💾 Simpan</button>
-                    <button @click="showScheduleModal = false" style="padding: 10px 15px; background: #2a2a2a; color: #fff; border: 1px solid #444; border-radius: 8px; cursor: pointer;">Batal</button>
+                <!-- VOUCHER ACTIVATION -->
+                <div class="section-box">
+                    <label class="section-box-title">🎟️ Aktivasi Kode Voucher</label>
+                    <div class="input-with-button">
+                        <input type="text" x-model="voucherInput" placeholder="Contoh: PGYM-PRO-2026" class="form-input text-uppercase">
+                        <button class="btn-solid-primary" @click="redeemVoucher()" :disabled="isRedeeming || !voucherInput.trim()">
+                            <span x-show="!isRedeeming">Klaim</span>
+                            <span x-show="isRedeeming">...</span>
+                        </button>
+                    </div>
+                    <div class="hint-text">💡 Coba voucher demo dosen: <code>PGYM-PRO-2026</code> atau <code>POSTGYM-SUPER-PASS</code></div>
+                    <div x-show="voucherError" class="alert-error" x-text="voucherError"></div>
+                    <div x-show="voucherSuccess" class="alert-success" x-text="voucherSuccess"></div>
+                </div>
+
+                <!-- QRIS PAYMENT SIMULATION -->
+                <div class="section-box">
+                    <label class="section-box-title">💳 Simulasi Pembayaran QRIS (Demo Bisnis)</label>
+                    <div class="qris-card">
+                        <div class="qris-header">
+                            <span class="qris-badge">QRIS NASIONAL</span>
+                            <span class="qris-price">Rp 25.000 / Bulan</span>
+                        </div>
+                        <div class="qris-qr-mock">
+                            <div class="qr-pattern">
+                                <div class="qr-box tl"></div>
+                                <div class="qr-box tr"></div>
+                                <div class="qr-box bl"></div>
+                                <div class="qr-center-text">POST GYM QRIS</div>
+                            </div>
+                        </div>
+                        <button class="btn-qris-simulate" @click="simulateQrisPayment()" :disabled="isSimulatingQris">
+                            <span x-show="!isSimulatingQris">⚡ Simulasi Bayar QRIS Instan</span>
+                            <span x-show="isSimulatingQris">Memproses transaksi...</span>
+                        </button>
+                        <div class="qris-subnote">Simulasi pembayaran instan untuk memenuhi pengujian model bisnis UAS.</div>
+                    </div>
+                </div>
+
+                <!-- DATA EXPORT -->
+                <div class="section-box">
+                    <label class="section-box-title">💾 Kepemilikan Data (Anti Data Lock-in)</label>
+                    <div class="export-btn-group">
+                        <button class="btn-secondary" @click="downloadExport('csv')">📊 Unduh CSV</button>
+                        <button class="btn-secondary" @click="downloadExport('json')">🗄️ Unduh JSON</button>
+                    </div>
+                </div>
+
+                <button class="btn-modal-close" @click="showAccountModal = false">Tutup</button>
+            </div>
+        </div>
+
+        <!-- MODAL 2: RANK RPG DETAILS -->
+        <div x-show="showRankModal" x-cloak class="modal-backdrop">
+            <div class="modal-card" @click.away="showRankModal = false">
+                <div class="modal-header">
+                    <div class="modal-title-wrap">
+                        <span class="modal-icon">🏆</span>
+                        <h2>Detail Rank RPG</h2>
+                    </div>
+                    <button class="btn-close-modal" @click="showRankModal = false">&times;</button>
+                </div>
+                
+                <div class="rank-highlight-box">
+                    <div class="rank-hero-title" x-text="todaySchedule.gamification?.title"></div>
+                    <div class="rank-hero-level">Level <span x-text="todaySchedule.gamification?.level"></span></div>
+                    <div class="rank-hero-stat">Total Sesi Tercatat: <strong x-text="todaySchedule.gamification?.total_sessions"></strong> Sesi</div>
+                    
+                    <div class="progress-bar-track">
+                        <div class="progress-bar-fill" :style="'width: ' + (todaySchedule.gamification?.progress_percent || 0) + '%;'"></div>
+                    </div>
+                    <div class="progress-hint">
+                        Tinggal <strong x-text="todaySchedule.gamification?.sessions_needed"></strong> sesi lagi untuk naik level!
+                    </div>
+                </div>
+
+                <div class="tier-list-container">
+                    <div class="tier-list-title">Daftar Gelar Latihan:</div>
+                    <div class="tier-item" :class="{ 'active': todaySchedule.gamification?.level <= 2 }">🐣 Couch Potato (Level 1–2 / 1–10 sesi)</div>
+                    <div class="tier-item" :class="{ 'active': todaySchedule.gamification?.level >= 3 && todaySchedule.gamification?.level <= 5 }">🦍 Gym Bro (Level 3–5 / 11–25 sesi)</div>
+                    <div class="tier-item" :class="{ 'active': todaySchedule.gamification?.level >= 6 && todaySchedule.gamification?.level <= 8 }">🦾 Iron Man (Level 6–8 / 26–40 sesi)</div>
+                    <div class="tier-item" :class="{ 'active': todaySchedule.gamification?.level >= 9 && todaySchedule.gamification?.level <= 12 }">🔱 Poseidon (Level 9–12 / 41–60 sesi)</div>
+                    <div class="tier-item" :class="{ 'active': todaySchedule.gamification?.level >= 13 }">⚡ Greek God (Level 13+ / 61+ sesi)</div>
+                </div>
+
+                <button class="btn-modal-close" @click="showRankModal = false">Tutup</button>
+            </div>
+        </div>
+
+        <!-- MODAL 3: SCHEDULE SETTINGS -->
+        <div x-show="showScheduleModal" x-cloak class="modal-backdrop">
+            <div class="modal-card scrollable" @click.away="showScheduleModal = false">
+                <div class="modal-header">
+                    <div class="modal-title-wrap">
+                        <span class="modal-icon">⚙️</span>
+                        <h2>Atur Jadwal Mingguan</h2>
+                    </div>
+                    <button class="btn-close-modal" @click="showScheduleModal = false">&times;</button>
+                </div>
+                
+                <p class="modal-subtitle">Ketik grup otot (pisahkan dengan koma), atau ketik <code>rest</code> jika hari istirahat.</p>
+                
+                <div class="schedule-inputs-grid">
+                    <template x-for="day in ['senin', 'selasa', 'rabu', 'kamis', 'jumat', 'sabtu', 'minggu']" :key="day">
+                        <div class="day-input-group">
+                            <label class="day-label" x-text="day"></label>
+                            <input type="text" x-model="scheduleForm[day]" class="form-input" placeholder="contoh: chest, triceps">
+                        </div>
+                    </template>
+                </div>
+
+                <div class="modal-actions-dual">
+                    <button class="btn-solid-primary" @click="saveScheduleForm()">💾 Simpan</button>
+                    <button class="btn-secondary" @click="showScheduleModal = false">Batal</button>
                 </div>
             </div>
         </div>
 
-        <!-- MAIN CONTENT AREA -->
-        <main class="content-area">
-            
-            <!-- TAB 1: JADWAL -->
-            <div x-show="activeTab === 'jadwal'" class="tab-pane" x-transition>
-                <div class="schedule-card">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem;">
-                        <h2 style="font-size: 1.1rem; margin: 0;">Jadwal Hari Ini: <span class="highlight" x-text="todaySchedule.name"></span></h2>
-                        <button @click="openScheduleModal()" style="background: rgba(187,134,252,0.15); border: 1px solid var(--primary); color: var(--primary); padding: 5px 12px; border-radius: 6px; font-size: 0.8rem; cursor: pointer; font-weight: bold;">⚙️ Atur</button>
+        <!-- MODAL 4: CUSTOM QUICK LOG (FOR UNSCHEDULED EXERCISE) -->
+        <div x-show="showCustomLogModal" x-cloak class="modal-backdrop">
+            <div class="modal-card" @click.away="showCustomLogModal = false">
+                <div class="modal-header">
+                    <div class="modal-title-wrap">
+                        <span class="modal-icon">➕</span>
+                        <h2>Catat Gerakan Manual</h2>
                     </div>
-                    
-                    <ul class="exercise-list">
-                        <template x-for="exercise in todaySchedule.exercises" :key="exercise.name">
-                            <li class="exercise-item">
-                                <div class="ex-header">
-                                    <strong x-text="exercise.name"></strong>
-                                </div>
-                                <div class="ex-history" x-show="exercise.last_weight !== null">
-                                    <span>Last: <span x-text="exercise.last_weight"></span>kg x <span x-text="exercise.last_reps"></span> (<span x-text="exercise.last_sets"></span> sets)</span>
-                                </div>
-                                <div class="ex-recommendation" x-show="exercise.recommendation" style="margin-top: 5px; padding: 6px; background-color: rgba(3,218,198,0.1); border-left: 3px solid var(--accent); font-size: 0.8rem; border-radius: 4px;">
-                                    🎯 Target: <strong x-text="exercise.recommendation.weight + 'kg x ' + exercise.recommendation.target_reps"></strong><br>
-                                    💡 <span x-text="exercise.recommendation.message" style="color: var(--accent);"></span>
-                                </div>
-                                <div class="ex-history empty" x-show="exercise.last_weight === null">
-                                    Belum ada history
-                                </div>
-                            </li>
-                        </template>
-                    </ul>
-                    
-                    <button class="btn-primary mt-4" @click="activeTab = 'log'">Mulai Latihan</button>
+                    <button class="btn-close-modal" @click="showCustomLogModal = false">&times;</button>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Nama Gerakan:</label>
+                    <input type="text" x-model="customLog.name" class="form-input" placeholder="contoh: Incline Dumbbell Press">
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">Grup Otot:</label>
+                    <select x-model="customLog.muscle_group" class="form-select">
+                        <option value="chest">Dada (Chest)</option>
+                        <option value="back">Punggung (Back)</option>
+                        <option value="legs">Kaki (Legs)</option>
+                        <option value="shoulders">Bahu (Shoulders)</option>
+                        <option value="arms">Lengan (Arms)</option>
+                        <option value="core">Perut (Core)</option>
+                    </select>
+                </div>
+
+                <div class="stepper-row-dual">
+                    <div class="stepper-box">
+                        <span class="stepper-label">BEBAN (KG)</span>
+                        <input type="number" step="0.5" x-model="customLog.weight" class="stepper-input">
+                    </div>
+                    <div class="stepper-box">
+                        <span class="stepper-label">REPETISI</span>
+                        <input type="number" step="1" x-model="customLog.reps" class="stepper-input">
+                    </div>
+                </div>
+
+                <div class="modal-actions-dual mt-3">
+                    <button class="btn-solid-primary" @click="saveCustomQuickLog()">✅ Simpan Set</button>
+                    <button class="btn-secondary" @click="showCustomLogModal = false">Batal</button>
                 </div>
             </div>
+        </div>
 
-            <!-- TAB 2: LOG (CORE FEATURE) -->
+        <!-- MAIN SCROLLABLE CONTENT -->
+        <main class="content-area">
+            
+            <!-- TAB 1: JADWAL (CORE 1-TAP QUICK LOGGER) -->
+            <div x-show="activeTab === 'jadwal'" class="tab-pane" x-transition>
+                
+                <div class="section-header-card">
+                    <div class="section-header-left">
+                        <span class="eyebrow-text">JADWAL HARI INI</span>
+                        <h2 class="section-main-title" x-text="todaySchedule.name"></h2>
+                    </div>
+                    <button class="btn-compact-settings" @click="openScheduleModal()">⚙️ Atur</button>
+                </div>
+
+                <!-- REST DAY STATE -->
+                <div x-show="todaySchedule.exercises && todaySchedule.exercises.length === 0" class="rest-day-card">
+                    <div class="rest-emoji">🛌</div>
+                    <h3 class="rest-title">Hari Istirahat / Rest Day</h3>
+                    <p class="rest-desc">Otot tumbuh saat istirahat dan nutrisi tercukupi. Nikmati harimu atau catat gerakan latihan tambahan jika kamu tetap latihan hari ini.</p>
+                    <button class="btn-outline-action" @click="showCustomLogModal = true">➕ Catat Gerakan Manual Hari Ini</button>
+                </div>
+
+                <!-- EXERCISE LIST WITH 1-TAP QUICK LOG -->
+                <div class="exercise-cards-container" x-show="todaySchedule.exercises && todaySchedule.exercises.length > 0">
+                    <template x-for="exercise in todaySchedule.exercises" :key="exercise.canonical">
+                        <div class="exercise-card">
+                            
+                            <div class="exercise-card-header">
+                                <div class="exercise-card-title-group">
+                                    <span class="muscle-pill" x-text="(exercise.muscle_group || 'GYM').toUpperCase()"></span>
+                                    <h3 class="exercise-title" x-text="exercise.name"></h3>
+                                </div>
+                                <span class="sets-done-chip" x-show="exercise.today_total_sets > 0" x-text="exercise.today_total_sets + ' Set Selesai'"></span>
+                            </div>
+
+                            <!-- PREVIOUS SESSION METRICS -->
+                            <div class="exercise-prev-history" x-show="exercise.last_weight !== null">
+                                <span class="history-label">Sesi Sebelumnya:</span>
+                                <span class="history-val"><span x-text="exercise.last_weight"></span>kg × <span x-text="exercise.last_reps"></span> (<span x-text="exercise.last_sets"></span> set)</span>
+                            </div>
+
+                            <!-- HYPERTROPHY RECOMMENDATION TARGET -->
+                            <div class="exercise-target-box" x-show="exercise.recommendation">
+                                <div class="target-title">
+                                    🎯 Target Progressive Overload: 
+                                    <strong x-text="exercise.recommendation?.weight + 'kg × ' + exercise.recommendation?.target_reps + ' reps'"></strong>
+                                </div>
+                                <div class="target-message" x-text="exercise.recommendation?.message"></div>
+                            </div>
+
+                            <!-- TODAY'S LOGGED SETS SUMMARY -->
+                            <div class="today-sets-tracker" x-show="exercise.today_sets && exercise.today_sets.length > 0">
+                                <div class="tracker-header">
+                                    <span class="tracker-title">✅ Set Hari Ini:</span>
+                                    <button class="btn-undo-link" @click="undoSet(exercise)">↺ Batal Set Terakhir</button>
+                                </div>
+                                <div class="sets-pills-wrap">
+                                    <template x-for="(s, idx) in exercise.today_sets" :key="s.id || idx">
+                                        <span class="set-pill">
+                                            Set <strong x-text="idx + 1"></strong>: <span x-text="s.weight"></span>kg × <span x-text="s.reps"></span>
+                                        </span>
+                                    </template>
+                                </div>
+                            </div>
+
+                            <!-- INSTANT FEEDBACK NOTICE -->
+                            <div class="feedback-banner" x-show="quickLogFeedback[exercise.canonical]" x-text="quickLogFeedback[exercise.canonical]"></div>
+
+                            <!-- INLINE STEPPERS (WEIGHT & REPS ADJUSTER) -->
+                            <div class="steppers-grid" x-show="exerciseDrafts[exercise.canonical]">
+                                <div class="stepper-item">
+                                    <span class="stepper-caption">BEBAN</span>
+                                    <div class="stepper-controls">
+                                        <button class="btn-step" @click="adjustDraft(exercise.canonical, 'weight', -2.5)">-2.5</button>
+                                        <button class="btn-step" @click="adjustDraft(exercise.canonical, 'weight', -0.5)">-</button>
+                                        <div class="stepper-display">
+                                            <span class="stepper-num" x-text="exerciseDrafts[exercise.canonical]?.weight"></span>
+                                            <span class="stepper-unit">kg</span>
+                                        </div>
+                                        <button class="btn-step" @click="adjustDraft(exercise.canonical, 'weight', 0.5)">+</button>
+                                        <button class="btn-step" @click="adjustDraft(exercise.canonical, 'weight', 2.5)">+2.5</button>
+                                    </div>
+                                </div>
+
+                                <div class="stepper-item">
+                                    <span class="stepper-caption">REPS</span>
+                                    <div class="stepper-controls">
+                                        <button class="btn-step" @click="adjustDraft(exercise.canonical, 'reps', -1)">-</button>
+                                        <div class="stepper-display">
+                                            <span class="stepper-num" x-text="exerciseDrafts[exercise.canonical]?.reps"></span>
+                                            <span class="stepper-unit">reps</span>
+                                        </div>
+                                        <button class="btn-step" @click="adjustDraft(exercise.canonical, 'reps', 1)">+</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 1-TAP QUICK LOG BUTTON -->
+                            <button 
+                                class="btn-action-primary" 
+                                @click="quickLogSet(exercise)" 
+                                :disabled="quickLogLoading[exercise.canonical]">
+                                <span x-show="!quickLogLoading[exercise.canonical]">
+                                    + Catat 1 Set (<span x-text="exerciseDrafts[exercise.canonical]?.weight"></span>kg × <span x-text="exerciseDrafts[exercise.canonical]?.reps"></span>)
+                                </span>
+                                <span x-show="quickLogLoading[exercise.canonical]">Menyimpan set...</span>
+                            </button>
+
+                        </div>
+                    </template>
+                </div>
+
+                <!-- EXTRA ACTIONS AT BOTTOM OF JADWAL -->
+                <div class="bottom-action-buttons">
+                    <button class="btn-secondary-action" @click="showCustomLogModal = true">➕ Tambah Gerakan Lain</button>
+                    <button class="btn-secondary-action" @click="activeTab = 'log'">✏️ Catat Teks Bebas (Log AI)</button>
+                </div>
+
+            </div>
+
+            <!-- TAB 2: LOG AI (FREE-TEXT PARSER — PRO TIER) -->
             <div x-show="activeTab === 'log'" class="tab-pane" x-transition>
-                <div class="log-container">
-                    <p class="helper-text">Ketik bebas log latihanmu di bawah ini.</p>
+                
+                <div class="tier-access-banner" :class="account.is_pro ? 'banner-pro' : 'banner-free'">
+                    <div class="tier-banner-info">
+                        <span class="tier-banner-icon" x-text="account.is_pro ? '⚡' : '🔒'"></span>
+                        <div>
+                            <div class="tier-banner-title" x-text="account.is_pro ? 'AI Slang Parser Siap (Model Qwen 2.5 1.5B Lokal)' : 'Fitur AI Slang Parser (Eksklusif PRO)'"></div>
+                            <div class="tier-banner-sub" x-text="account.is_pro ? 'Parsing bahasa gaul gym Indonesia 100% offline' : 'Gunakan voucher demo gratis PGYM-PRO-2026 untuk mengaktifkan'"></div>
+                        </div>
+                    </div>
+                    <button x-show="!account.is_pro" class="btn-banner-upgrade" @click="showAccountModal = true">Aktivasi</button>
+                </div>
+
+                <div class="card-container">
+                    <h2 class="card-title">Ketik Bebas Log Latihan</h2>
+                    <p class="helper-text">Ketik nama alat, beban, repetisi, atau slang lokal. AI akan otomatis menormalisasi.</p>
                     
                     <div class="textarea-wrapper">
                         <textarea 
                             class="free-text-input" 
                             x-model="rawLogText" 
-                            placeholder="Contoh:&#10;incline press 15kg 10x3&#10;pec deck 16kg 12x3&#10;capek bgt form agak jelek"
+                            placeholder="Contoh:&#10;incline press 20kg 10x3&#10;pec deck 25kg 12 12 10&#10;begantung kaki naik naik 12x3&#10;capek bgt form agak jebol"
                             rows="6">
                         </textarea>
                     </div>
 
                     <button 
-                        class="btn-primary mt-4" 
+                        class="btn-action-primary mt-3" 
                         @click="parseWithAI()" 
                         :disabled="isParsing || rawLogText.trim() === ''">
-                        <span x-show="!isParsing">🤖 Parse JSON</span>
-                        <span x-show="isParsing">Menerjemahkan...</span>
+                        <span x-show="!isParsing">🤖 Terjemahkan dengan AI</span>
+                        <span x-show="isParsing">⏳ AI sedang menerjemahkan...</span>
                     </button>
 
-                    <!-- Preview Hasil & Edit -->
-                    <div class="preview-card mt-4" x-show="parsedResult">
-                        <h3 style="margin-bottom: 10px;">🔍 Preview & Koreksi</h3>
-                        <p style="font-size: 0.85rem; color: #aaa; margin-bottom: 10px;">Kalau AI salah tangkap, silakan edit langsung JSON di bawah ini sebelum disimpan.</p>
+                    <!-- PREVIEW HASIL PARSER -->
+                    <div class="preview-box mt-3" x-show="parsedResult">
+                        <div class="preview-header">
+                            <h3>🔍 Preview & Koreksi JSON</h3>
+                            <span class="preview-badge">Bisa Diedit</span>
+                        </div>
+                        <p class="preview-note">Kamu memiliki kendali penuh! Koreksi JSON di bawah jika diperlukan sebelum disimpan ke database.</p>
                         
-                        <textarea x-model="editableJson" style="width: 100%; height: 200px; background: #1a1a1a; color: #03dac6; border: 1px solid #333; border-radius: 4px; padding: 10px; font-family: monospace; font-size: 0.9rem; margin-bottom: 15px;"></textarea>
+                        <textarea x-model="editableJson" class="json-editor-textarea"></textarea>
                         
-                        <button class="btn-primary" style="background-color: var(--accent); color: black;" @click="saveToDB()" :disabled="isSaving">
-                            <span x-show="!isSaving">✅ Simpan ke Database</span>
+                        <button class="btn-action-primary mt-2" @click="saveToDB()" :disabled="isSaving">
+                            <span x-show="!isSaving">✅ Konfirmasi & Simpan ke Database</span>
                             <span x-show="isSaving">Menyimpan...</span>
                         </button>
                     </div>
                 </div>
+
             </div>
 
-            <!-- TAB 3: HISTORY -->
-            <div x-show="activeTab === 'history'" class="tab-pane" x-transition style="height: 100%; overflow-y: auto;">
-                <h2 class="section-title" style="margin-bottom: 15px;">Riwayat Latihanmu</h2>
+            <!-- TAB 3: FORM AI (VIDEO POSE CHECKER — PRO TIER) -->
+            <div x-show="activeTab === 'vision'" class="tab-pane" x-transition>
                 
-                <div x-show="logs.length === 0" style="text-align: center; color: var(--text-muted); margin-top: 20px;">
-                    Belum ada riwayat. Ayo ketik log pertamamu!
-                </div>
-
-                <div class="history-list" style="display: flex; flex-direction: column; gap: 15px; padding-bottom: 20px;">
-                    <template x-for="log in logs" :key="log.date">
-                        <div class="history-card" style="background: var(--bg-dark); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color);">
-                            <div style="display: flex; justify-content: space-between; margin-bottom: 10px; border-bottom: 1px solid var(--border-color); padding-bottom: 5px;">
-                                <strong class="highlight" x-text="log.date"></strong>
-                            </div>
-                            
-                            <ul style="list-style: none; padding: 0; margin: 0;">
-                                <template x-for="ex in log.exercises">
-                                    <li style="margin-bottom: 8px;">
-                                        <div style="font-weight: 500; font-size: 0.95rem; color: #fff;" x-text="ex.name"></div>
-                                        <div style="color: var(--text-muted); font-size: 0.85rem;" x-text="ex.sets_summary"></div>
-                                    </li>
-                                </template>
-                            </ul>
-                            
-                            <!-- Catatan sesi kalau ada -->
-                            <div x-show="log.note" style="margin-top: 10px; padding: 8px; background: rgba(255,255,255,0.05); border-radius: 4px; font-size: 0.85rem; font-style: italic; color: #ccc;">
-                                "<span x-text="log.note"></span>"
-                            </div>
+                <div class="tier-access-banner" :class="account.is_pro ? 'banner-pro' : 'banner-free'">
+                    <div class="tier-banner-info">
+                        <span class="tier-banner-icon" x-text="account.is_pro ? '⚡' : '🔒'"></span>
+                        <div>
+                            <div class="tier-banner-title" x-text="account.is_pro ? 'YOLOv8 Pose Tracker Siap' : 'AI Video Form Check (Eksklusif PRO)'"></div>
+                            <div class="tier-banner-sub" x-text="account.is_pro ? 'Deteksi rep & form check 100% lokal di HP/laptopmu' : 'Aktivasi PRO dengan voucher demo PGYM-PRO-2026'"></div>
                         </div>
-                    </template>
-                </div>
-            </div>
-
-            <!-- TAB 4: PROGRESS -->
-            <div x-show="activeTab === 'progress'" class="tab-pane" x-transition style="height: 100%; overflow-y: auto;">
-                <h2 class="section-title" style="margin-bottom: 15px;">📊 Progress Latihan</h2>
-                
-                <div class="history-card" style="background: var(--bg-dark); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color); margin-bottom: 15px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                        <strong style="color: #fff;">Konsistensi</strong>
-                        <select x-model="recapPeriod" @change="fetchRecap()" style="padding: 5px; background: #222; color: white; border: 1px solid var(--border-color); border-radius: 4px;">
-                            <option value="week">Mingguan</option>
-                            <option value="month">Bulanan</option>
-                            <option value="year">Tahunan</option>
-                        </select>
                     </div>
-                    <canvas id="recapChart" style="max-height: 200px; width: 100%;"></canvas>
+                    <button x-show="!account.is_pro" class="btn-banner-upgrade" @click="showAccountModal = true">Aktivasi</button>
                 </div>
 
-                <div class="history-card" style="background: var(--bg-dark); padding: 15px; border-radius: 8px; border: 1px solid var(--border-color); padding-bottom: 30px;">
-                    <div style="margin-bottom: 10px;">
-                        <strong style="color: #fff; display: block; margin-bottom: 8px;">Kekuatan Beban Maksimal</strong>
-                        <select x-model="selectedExercise" @change="fetchProgress()" style="width: 100%; padding: 8px; background: #222; color: white; border: 1px solid var(--border-color); border-radius: 4px;">
-                            <option value="">Pilih Gerakan...</option>
-                            <template x-for="ex in exerciseList" :key="ex.canonical">
-                                <option :value="ex.canonical" x-text="ex.name"></option>
-                            </template>
-                        </select>
-                    </div>
-                    <canvas id="progressChart" style="max-height: 250px; width: 100%;"></canvas>
-                </div>
-            </div>
-
-            <!-- TAB 5: FORM AI (VIDEO POSE CHECKER) -->
-            <div x-show="activeTab === 'vision'" class="tab-pane" x-transition style="height: 100%; overflow-y: auto;">
-                <div class="schedule-card" style="margin-bottom: 20px;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 8px;">
-                        <h2 style="font-size: 1.15rem; margin: 0; color: var(--accent);">📹 AI Video Form Check</h2>
-                        <span style="font-size: 0.72rem; background: rgba(3,218,198,0.15); color: var(--accent); padding: 3px 8px; border-radius: 4px; font-weight: bold;">YOLOv8 Pose</span>
+                <div class="card-container">
+                    <div class="card-header-between">
+                        <h2 class="card-title">📹 AI Video Form Check</h2>
+                        <span class="pill-chip">YOLOv8 Pose</span>
                     </div>
 
-                    <p style="font-size: 0.82rem; color: #aaa; margin-bottom: 16px;">
-                        Upload video rekaman latihanmu untuk mendeteksi repetisi, mengecek kedalaman (depth), dan menganalisis postur secara otomatis. 100% lokal & privat!
+                    <p class="helper-text">
+                        Upload video rekaman latihanmu untuk mendeteksi repetisi, kedalaman (depth), dan telemetri sudut sendi. Video mentah otomatis dihapus setelah analisis demi privasi total!
                     </p>
 
-                    <!-- Exercise Selection -->
-                    <div style="margin-bottom: 15px;">
-                        <label style="display: block; font-size: 0.82rem; font-weight: bold; color: #ddd; margin-bottom: 6px;">Pilih Jenis Gerakan:</label>
-                        <select x-model="selectedVideoExercise" style="width: 100%; padding: 10px; background: #222; color: #fff; border: 1px solid var(--border); border-radius: 8px; font-size: 0.9rem;">
+                    <!-- EXERCISE SELECTION -->
+                    <div class="form-group">
+                        <label class="form-label">Pilih Jenis Gerakan:</label>
+                        <select x-model="selectedVideoExercise" class="form-select">
                             <optgroup label="🦵 Latihan Kaki & Pinggul (Lower Body)">
                                 <option value="squat">🏋️ Barbell / Bodyweight Squat (Knee Depth Check)</option>
                                 <option value="leg_extension">🦿 Leg Extension Machine (Paha Depan / Quads)</option>
                                 <option value="hamstring_curl">🍗 Hamstring Leg Curl (Paha Belakang)</option>
                                 <option value="abductor">🍑 Hip Abduction Machine (Kangkang Mesin / Glutes)</option>
-                                <option value="adductor">🧲 Hip Adduction Machine (Jepit Paha Dalam / Inner Thigh)</option>
-                                <option value="lunge">🦵 Lunges / Bulgarian Split Squat (Lutut Depan 90°)</option>
-                                <option value="rdl">🪵 Romanian Deadlift / RDL (Hip Hinge & Hamstring)</option>
+                                <option value="adductor">🧲 Hip Adduction Machine (Jepit Paha Dalam)</option>
+                                <option value="lunge">🦵 Lunges / Bulgarian Split Squat (Lutut 90°)</option>
+                                <option value="rdl">🪵 Romanian Deadlift / RDL (Hip Hinge Check)</option>
                             </optgroup>
                             <optgroup label="💪 Latihan Punggung & Badan Atas (Upper Body)">
                                 <option value="rowing">🚣 Seated / Barbell Rowing (Tarik Siku Punggung)</option>
-                                <option value="back_extension">🧘 Back Extension / Hyperextension (Pinggang Bawah)</option>
+                                <option value="back_extension">🧘 Back Extension / Hyperextension (Pinggang)</option>
                                 <option value="push_up">🤸 Push Up (Chest to Floor & Elbow Angle)</option>
-                                <option value="triceps_pushdown">💪 Triceps Cable Pushdown (Elbow Lockout Check)</option>
-                                <option value="bicep_curl">🦾 Bicep Curl (Full Contraction & Stretch)</option>
+                                <option value="triceps_pushdown">💪 Triceps Cable Pushdown (Lockout Check)</option>
+                                <option value="bicep_curl">🦾 Bicep Curl (Full Contraction Check)</option>
                             </optgroup>
                         </select>
                     </div>
 
-                    <!-- Upload Dropzone -->
+                    <!-- UPLOAD DROPZONE -->
                     <div 
                         class="video-upload-zone" 
                         :class="{ 'dragover': dragOver }"
@@ -271,120 +477,202 @@
                         <input type="file" x-ref="videoInput" @change="handleVideoSelect($event)" accept="video/*" style="display: none;">
                         
                         <div x-show="!videoFile">
-                            <div style="font-size: 2.2rem; margin-bottom: 6px;">📤</div>
-                            <div style="font-size: 0.9rem; font-weight: 500; color: #eee;">Sentuh atau seret video rekaman ke sini</div>
-                            <div style="font-size: 0.75rem; color: #777; margin-top: 4px;">Mendukung format MP4, MOV, WebM (Maks. disarankan &lt; 50MB)</div>
+                            <div class="upload-icon">📤</div>
+                            <div class="upload-title">Sentuh atau seret video rekaman ke sini</div>
+                            <div class="upload-hint">Format MP4, MOV, WebM (Maks. disarankan &lt; 50MB)</div>
                         </div>
 
                         <div x-show="videoFile">
-                            <div style="font-size: 2rem; margin-bottom: 4px;">🎬</div>
-                            <div style="font-size: 0.92rem; font-weight: bold; color: var(--accent);" x-text="videoFileName"></div>
-                            <div style="font-size: 0.8rem; color: #aaa; margin-top: 2px;" x-text="videoFileSize"></div>
-                            <button type="button" @click.stop="resetVideoAnalysis()" style="margin-top: 10px; background: rgba(255,255,255,0.08); border: 1px solid #555; color: #ddd; padding: 4px 10px; border-radius: 4px; font-size: 0.75rem; cursor: pointer;">Ganti Video</button>
+                            <div class="upload-icon">🎬</div>
+                            <div class="upload-filename" x-text="videoFileName"></div>
+                            <div class="upload-filesize" x-text="videoFileSize"></div>
+                            <button type="button" @click.stop="resetVideoAnalysis()" class="btn-change-file">Ganti Video</button>
                         </div>
                     </div>
 
-                    <!-- Analyze Button -->
+                    <!-- ANALYZE BUTTON -->
                     <button 
-                        class="btn-primary mt-4" 
+                        class="btn-action-primary mt-3" 
                         @click="uploadAndAnalyzeVideo()" 
-                        :disabled="!videoFile || isAnalyzingVideo"
-                        style="background: linear-gradient(90deg, var(--accent), var(--primary)); color: #000; font-weight: bold;">
+                        :disabled="!videoFile || isAnalyzingVideo">
                         <span x-show="!isAnalyzingVideo">⚡ Analisis Form & Hitung Repetisi</span>
-                        <span x-show="isAnalyzingVideo">⏳ Memproses pose kerangka AI... (~10-15 dtk)</span>
+                        <span x-show="isAnalyzingVideo">⏳ Memproses pose kerangka AI... (~15-20 dtk)</span>
                     </button>
 
-                    <!-- Error Alert -->
-                    <div x-show="videoError" x-cloak style="margin-top: 14px; padding: 10px 14px; background: rgba(207,102,121,0.15); border: 1px solid #cf6679; border-radius: 8px; color: #ff8597; font-size: 0.85rem;" x-text="videoError"></div>
+                    <div x-show="videoError" x-cloak class="alert-error mt-2" x-text="videoError"></div>
                 </div>
 
-                <!-- Analysis Results Section -->
-                <div x-show="videoResult" x-cloak class="schedule-card" style="margin-bottom: 25px; border: 1px solid var(--accent); box-shadow: 0 0 20px rgba(3,218,198,0.15);">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid var(--border); padding-bottom: 8px;">
-                        <h3 style="font-size: 1.1rem; margin: 0; color: #fff;">📊 Hasil Analisis Pose & Kedalaman</h3>
-                        <span style="font-size: 0.8rem; font-weight: bold; color: var(--accent); text-transform: uppercase;" x-text="videoResult?.exercise"></span>
+                <!-- ANALYSIS RESULTS -->
+                <div x-show="videoResult" x-cloak class="card-container mt-3">
+                    <div class="card-header-between">
+                        <h3 class="card-title">📊 Hasil Telemetri Pose AI</h3>
+                        <span class="pill-chip" x-text="videoResult?.exercise"></span>
                     </div>
 
-                    <!-- Metric Cards -->
                     <div class="metric-grid">
-                        <div class="metric-card">
-                            <div style="font-size: 0.75rem; color: #aaa;">TOTAL REPETISI</div>
-                            <div class="metric-value" style="color: #fff;" x-text="videoResult?.total_reps"></div>
+                        <div class="metric-box">
+                            <div class="metric-label">TOTAL REPETISI</div>
+                            <div class="metric-val" x-text="videoResult?.total_reps"></div>
                         </div>
-                        <div class="metric-card">
-                            <div style="font-size: 0.75rem; color: #aaa;">AKURASI FORM</div>
-                            <div class="metric-value" :style="videoResult?.accuracy_percent >= 80 ? 'color: #03dac6;' : 'color: #ffb74d;'" x-text="videoResult?.accuracy_percent + '%'"></div>
+                        <div class="metric-box">
+                            <div class="metric-label">AKURASI FORM</div>
+                            <div class="metric-val" :class="videoResult?.accuracy_percent >= 80 ? 'text-accent' : 'text-warning'" x-text="videoResult?.accuracy_percent + '%'"></div>
                         </div>
-                        <div class="metric-card" style="border-left: 3px solid #03dac6;">
-                            <div style="font-size: 0.75rem; color: #aaa;">REP VALID (FULL DEPTH)</div>
-                            <div class="metric-value" style="color: #03dac6;" x-text="videoResult?.valid_reps"></div>
+                        <div class="metric-box border-accent">
+                            <div class="metric-label">REP VALID (FULL)</div>
+                            <div class="metric-val text-accent" x-text="videoResult?.valid_reps"></div>
                         </div>
-                        <div class="metric-card" style="border-left: 3px solid #ffb74d;">
-                            <div style="font-size: 0.75rem; color: #aaa;">SHALLOW (HALF REP)</div>
-                            <div class="metric-value" style="color: #ffb74d;" x-text="videoResult?.shallow_reps"></div>
+                        <div class="metric-box border-warning">
+                            <div class="metric-label">HALF REP (SHALLOW)</div>
+                            <div class="metric-val text-warning" x-text="videoResult?.shallow_reps"></div>
                         </div>
                     </div>
 
-                    <!-- Overall AI Advice / Feedback -->
-                    <div style="margin: 15px 0; padding: 12px; background: rgba(3,218,198,0.08); border-left: 4px solid var(--accent); border-radius: 6px;">
-                        <div style="font-size: 0.8rem; font-weight: bold; color: var(--accent); margin-bottom: 4px;">💡 EVALUASI AI:</div>
-                        <div style="font-size: 0.85rem; color: #eee; line-height: 1.4;" x-text="videoResult?.overall_feedback"></div>
+                    <!-- OVERALL AI FEEDBACK -->
+                    <div class="ai-feedback-box">
+                        <div class="ai-feedback-title">💡 EVALUASI FORM:</div>
+                        <div class="ai-feedback-text" x-text="videoResult?.overall_feedback"></div>
                     </div>
 
-                    <!-- Rep by Rep Breakdown -->
-                    <div x-show="videoResult?.rep_details && videoResult.rep_details.length > 0" style="margin-top: 15px;">
-                        <h4 style="font-size: 0.85rem; color: #bbb; margin-bottom: 8px;">Detail per Repetisi:</h4>
-                        <div style="display: flex; flex-direction: column; gap: 6px;">
+                    <!-- REP DETAILS -->
+                    <div x-show="videoResult?.rep_details && videoResult.rep_details.length > 0" class="mt-3">
+                        <h4 class="rep-details-title">Detail Tiap Repetisi:</h4>
+                        <div class="rep-items-list">
                             <template x-for="r in videoResult.rep_details" :key="r.rep">
-                                <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; background: #252525; border-radius: 6px; font-size: 0.82rem;">
+                                <div class="rep-row">
                                     <span>Rep <strong x-text="r.rep"></strong> (Sudut min: <span x-text="r.min_angle"></span>°)</span>
-                                    <span :style="r.depth === 'VALID' ? 'color: #03dac6; font-weight: bold;' : 'color: #ffb74d; font-weight: bold;'" x-text="r.depth === 'VALID' ? '✅ Full Depth' : '⚠️ Half Rep'"></span>
+                                    <span :class="r.depth === 'VALID' ? 'badge-depth-valid' : 'badge-depth-shallow'" x-text="r.depth === 'VALID' ? '✅ Full Depth' : '⚠️ Half Rep'"></span>
                                 </div>
                             </template>
                         </div>
                     </div>
 
-                    <!-- Annotated Video Player -->
-                    <div style="margin-top: 20px;">
-                        <h4 style="font-size: 0.85rem; color: #bbb; margin-bottom: 8px;">Hasil Video dengan Tracking Pose & Telemetri HUD:</h4>
-                        <div style="border-radius: 8px; overflow: hidden; background: #000; border: 1px solid #444;">
-                            <video 
-                                :src="videoResult?.video_url" 
-                                controls 
-                                playsinline 
-                                style="width: 100%; display: block; max-height: 400px; object-fit: contain;">
-                            </video>
+                    <!-- ANNOTATED VIDEO PLAYER -->
+                    <div class="mt-3">
+                        <h4 class="rep-details-title">Rekaman Anotasi dengan HUD Telemetri:</h4>
+                        <div class="video-player-wrap">
+                            <video :src="videoResult?.video_url" controls playsinline class="annotated-video"></video>
                         </div>
-                        <div style="margin-top: 8px; text-align: right;">
-                            <a :href="videoResult?.video_url" download style="color: var(--accent); font-size: 0.8rem; text-decoration: none;">⬇️ Download Video Teranotasi</a>
+                        <div class="video-download-bar">
+                            <a :href="videoResult?.video_url" download class="btn-download-video">⬇️ Unduh Video Hasil Anotasi</a>
                         </div>
                     </div>
                 </div>
+
+            </div>
+
+            <!-- TAB 4: HISTORY (RIWAYAT & EXPORT) -->
+            <div x-show="activeTab === 'history'" class="tab-pane" x-transition>
+                
+                <div class="history-top-header">
+                    <div>
+                        <span class="eyebrow-text">ARSIP LATIHAN</span>
+                        <h2 class="section-main-title">Riwayat Sesi</h2>
+                    </div>
+                    <div class="export-buttons-top">
+                        <button class="btn-export-pill" @click="downloadExport('csv')" title="Ekspor file CSV spreadsheet">📊 CSV</button>
+                        <button class="btn-export-pill" @click="downloadExport('json')" title="Ekspor file JSON data murni">🗄️ JSON</button>
+                    </div>
+                </div>
+
+                <div x-show="logs.length === 0" class="empty-state-box">
+                    <div class="empty-icon">📝</div>
+                    <div class="empty-title">Belum ada riwayat tercatat</div>
+                    <p class="empty-sub">Gunakan tombol 1-Tap Quick Log pada Jadwal Hari Ini atau ketik di Tab Log AI!</p>
+                </div>
+
+                <div class="history-cards-list" x-show="logs.length > 0">
+                    <template x-for="log in logs" :key="log.date">
+                        <div class="history-card">
+                            <div class="history-card-header">
+                                <strong class="history-date" x-text="log.date"></strong>
+                                <span class="history-count" x-text="log.exercises.length + ' Gerakan'"></span>
+                            </div>
+                            
+                            <ul class="history-exercises-list">
+                                <template x-for="ex in log.exercises">
+                                    <li class="history-exercise-row">
+                                        <div class="history-ex-name" x-text="ex.name"></div>
+                                        <div class="history-ex-sets" x-text="ex.sets_summary"></div>
+                                    </li>
+                                </template>
+                            </ul>
+                            
+                            <div x-show="log.note" class="history-session-note">
+                                "<span x-text="log.note"></span>"
+                            </div>
+                        </div>
+                    </template>
+                </div>
+
+            </div>
+
+            <!-- TAB 5: PROGRESS & CHARTS -->
+            <div x-show="activeTab === 'progress'" class="tab-pane" x-transition>
+                
+                <div class="history-top-header">
+                    <div>
+                        <span class="eyebrow-text">ANALISIS PERKEMBANGAN</span>
+                        <h2 class="section-main-title">Statistik & Konsistensi</h2>
+                    </div>
+                </div>
+
+                <!-- CONSISTENCY BAR CHART -->
+                <div class="card-container mb-3">
+                    <div class="card-header-between">
+                        <strong class="chart-title">Konsistensi Latihan</strong>
+                        <select x-model="recapPeriod" @change="fetchRecap()" class="chart-period-select">
+                            <option value="week">Mingguan</option>
+                            <option value="month">Bulanan</option>
+                            <option value="year">Tahunan</option>
+                        </select>
+                    </div>
+                    <div class="chart-canvas-wrap">
+                        <canvas id="recapChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- STRENGTH PROGRESS LINE CHART -->
+                <div class="card-container">
+                    <div class="form-group">
+                        <label class="form-label">Kekuatan Beban Maksimal (Progressive Overload):</label>
+                        <select x-model="selectedExercise" @change="fetchProgress()" class="form-select">
+                            <option value="">Pilih Gerakan...</option>
+                            <template x-for="ex in exerciseList" :key="ex.canonical">
+                                <option :value="ex.canonical" x-text="ex.name"></option>
+                            </template>
+                        </select>
+                    </div>
+                    <div class="chart-canvas-wrap">
+                        <canvas id="progressChart"></canvas>
+                    </div>
+                </div>
+
             </div>
 
         </main>
 
-        <!-- BOTTOM NAVIGATION -->
+        <!-- BOTTOM MOBILE NAVIGATION BAR -->
         <nav class="bottom-nav">
             <button class="nav-item" :class="{ 'active': activeTab === 'jadwal' }" @click="activeTab = 'jadwal'">
                 <span class="nav-icon">📅</span>
-                <span>Jadwal</span>
+                <span class="nav-label">Jadwal</span>
             </button>
-            <button class="nav-item center-nav" :class="{ 'active': activeTab === 'log' }" @click="activeTab = 'log'">
+            <button class="nav-item" :class="{ 'active': activeTab === 'log' }" @click="activeTab = 'log'">
                 <span class="nav-icon">✏️</span>
-                <span>Log AI</span>
+                <span class="nav-label">Log AI</span>
             </button>
             <button class="nav-item" :class="{ 'active': activeTab === 'vision' }" @click="activeTab = 'vision'">
                 <span class="nav-icon">📹</span>
-                <span>Form AI</span>
+                <span class="nav-label">Form AI</span>
             </button>
             <button class="nav-item" :class="{ 'active': activeTab === 'history' }" @click="activeTab = 'history'">
                 <span class="nav-icon">🕒</span>
-                <span>History</span>
+                <span class="nav-label">Riwayat</span>
             </button>
             <button class="nav-item" :class="{ 'active': activeTab === 'progress' }" @click="activeTab = 'progress'; initCharts();">
                 <span class="nav-icon">📈</span>
-                <span>Progress</span>
+                <span class="nav-label">Progress</span>
             </button>
         </nav>
 

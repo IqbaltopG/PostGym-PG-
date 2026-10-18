@@ -2,14 +2,35 @@ import os
 import time
 import uuid
 import shutil
+import csv
+import io
+import json
+import urllib.request
+import re
 from datetime import datetime
+from typing import Optional
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
+from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 # Import fungsi database dan rules engine buatan kita
-from database import get_schedule, get_last_history, save_workout_log, get_all_history
+from database import (
+    get_schedule,
+    save_schedule,
+    get_last_history,
+    save_workout_log,
+    get_all_history,
+    quick_log_set,
+    undo_last_set,
+    get_all_workout_records_flat,
+    generate_anonymous_account,
+    get_account_status,
+    redeem_voucher_code,
+    simulate_qris,
+    get_connection
+)
 from rules import calculate_next_target
 
 app = FastAPI(title="POST GYM Backend")
@@ -22,9 +43,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- SCHEMA ---
+# --- SCHEMAS ---
 class ParseRequest(BaseModel):
     raw_text: str
+    account_id: Optional[str] = None
+
+class QuickLogRequest(BaseModel):
+    canonical: str
+    name: str
+    muscle_group: str = "other"
+    weight_kg: float
+    reps: int
+    note: str = ""
+    date: Optional[str] = None
 
 # --- API ENDPOINTS ---
 
@@ -88,25 +119,45 @@ async def get_today_plan():
         "exercises": []
     }
     
-    # Query semua gerakan (canonical) yang pernah kamu lakukan untuk grup otot di jadwal hari ini
+    today_iso = datetime.today().strftime('%Y-%m-%d')
     conn = get_connection()
     placeholders = ','.join(['?'] * len(muscle_groups))
     lower_muscles = [m.lower() for m in muscle_groups]
     
-    rows = conn.execute(f"SELECT DISTINCT canonical FROM exercises WHERE LOWER(muscle_group) IN ({placeholders})", lower_muscles).fetchall()
+    # Ambil session id hari ini jika ada untuk mengecek set yang sudah dicatat
+    today_session = conn.execute("SELECT id FROM workout_sessions WHERE date = ?", (today_iso,)).fetchone()
+    today_session_id = today_session['id'] if today_session else None
+
+    rows = conn.execute(
+        f"SELECT DISTINCT canonical, muscle_group, name FROM exercises WHERE LOWER(muscle_group) IN ({placeholders}) GROUP BY canonical",
+        lower_muscles
+    ).fetchall()
+    
     target_exercises = [row['canonical'] for row in rows]
-    conn.close()
+    meta_map = {row['canonical']: (row['name'], row['muscle_group']) for row in rows}
     
     for ex_canonical in target_exercises:
         history = get_last_history(ex_canonical)
+        raw_name, mg = meta_map.get(ex_canonical, (ex_canonical.replace("_", " ").title(), muscle_groups[0]))
+        
+        # Ambil set yang sudah dicatat hari ini
+        today_sets = []
+        if today_session_id:
+            ex_row = conn.execute("SELECT id FROM exercises WHERE session_id = ? AND canonical = ?", (today_session_id, ex_canonical)).fetchone()
+            if ex_row:
+                s_rows = conn.execute("SELECT id, weight_kg, reps, note FROM sets WHERE exercise_id = ? ORDER BY id ASC", (ex_row['id'],)).fetchall()
+                today_sets = [{"id": s["id"], "weight": s["weight_kg"], "reps": s["reps"], "note": s["note"]} for s in s_rows]
         
         ex_data = {
-            "name": ex_canonical.replace("_", " ").title(),
+            "name": raw_name,
             "canonical": ex_canonical,
+            "muscle_group": mg,
             "last_weight": None,
             "last_reps": None,
             "last_sets": None,
-            "recommendation": None
+            "recommendation": None,
+            "today_sets": today_sets,
+            "today_total_sets": len(today_sets)
         }
         
         if history:
@@ -120,12 +171,41 @@ async def get_today_plan():
             
         plan["exercises"].append(ex_data)
         
+    conn.close()
     return plan
 
 
-import json
-import urllib.request
-import re
+@app.post("/api/quick-log")
+async def api_quick_log(req: QuickLogRequest):
+    """
+    1-Tap Quick Log untuk Free Tier:
+    Menyimpan 1 set latihan langsung ke database tanpa perlu AI parser.
+    """
+    try:
+        res = quick_log_set(
+            canonical=req.canonical,
+            name=req.name,
+            muscle_group=req.muscle_group,
+            weight_kg=req.weight_kg,
+            reps=req.reps,
+            note=req.note,
+            date_str=req.date
+        )
+        return res
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+@app.post("/api/quick-log/undo")
+async def api_quick_log_undo(req: dict):
+    """Membatalkan set terakhir dari gerakan hari ini"""
+    try:
+        canonical = req.get("canonical")
+        date_str = req.get("date")
+        if not canonical:
+            return {"status": "error", "message": "Canonical name required"}
+        return undo_last_set(canonical, date_str)
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
 def preprocess_text(text: str) -> str:
     lines = []
@@ -463,7 +543,16 @@ async def parse_log(request: ParseRequest):
     """
     Endpoint ini nembak langsung ke llama-server lokal.
     Hanya me-return hasil JSON, TIDAK menyimpan ke database.
+    Fitur AI Eksklusif: Memerlukan Akun PRO jika account_id disediakan.
     """
+    if request.account_id:
+        acc_status = get_account_status(request.account_id)
+        if not acc_status.get("is_pro"):
+            return {
+                "status": "pro_required",
+                "message": "Fitur AI Text Parser eksklusif untuk member PRO. Gunakan voucher demo 'PGYM-PRO-2026' atau scan QRIS di menu Akun!"
+            }
+
     cleaned_text = preprocess_text(request.raw_text)
 
     system_prompt = """Kamu adalah parser log gym. Tugas: konversi teks bebas log latihan menjadi JSON terstruktur.
@@ -631,9 +720,18 @@ pose_analyzer_instance = PoseAnalyzer()
 @app.post("/api/analyze-video")
 def analyze_video_endpoint(
     video: UploadFile = File(...),
-    exercise: str = Form("squat")
+    exercise: str = Form("squat"),
+    account_id: Optional[str] = Form(None)
 ):
     """Menganalisis video latihan menggunakan YOLOv8n-pose dan menghitung repetisi & kedalaman"""
+    if account_id:
+        acc_status = get_account_status(account_id)
+        if not acc_status.get("is_pro"):
+            return {
+                "status": "pro_required",
+                "message": "Fitur AI Video Form Check eksklusif untuk member PRO. Gunakan voucher demo 'PGYM-PRO-2026' atau scan QRIS di menu Akun!"
+            }
+
     try:
         print(f"--> [DEBUG] 1. Upload received: {video.filename}, exercise={exercise}", flush=True)
         uploads_dir = os.path.join(os.path.dirname(__file__), "../frontend/uploads")
@@ -667,6 +765,81 @@ def analyze_video_endpoint(
     except Exception as e:
         print(f"--> [DEBUG] ERROR in video endpoint: {e}", flush=True)
         return {"status": "error", "message": str(e)}
+
+
+# --- DATA EXPORT ENDPOINTS (CSV & JSON) ---
+
+@app.get("/api/export/csv")
+async def export_csv():
+    """Mengunduh seluruh database riwayat latihan user dalam format CSV (Data Ownership / Anti-Lockin)"""
+    records = get_all_workout_records_flat()
+    output = io.StringIO()
+    fieldnames = [
+        "date", "muscle_group", "exercise_name", "canonical",
+        "set_id", "weight_kg", "reps", "rpe", "note", "per_hand", "session_note"
+    ]
+    writer = csv.DictWriter(output, fieldnames=fieldnames)
+    writer.writeheader()
+    for r in records:
+        writer.writerow(r)
+    output.seek(0)
+    
+    filename = f"postgym_workouts_{datetime.today().strftime('%Y%m%d')}.csv"
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+@app.get("/api/export/json")
+async def export_json():
+    """Mengunduh seluruh database riwayat latihan user dalam format JSON"""
+    records = get_all_workout_records_flat()
+    filename = f"postgym_workouts_{datetime.today().strftime('%Y%m%d')}.json"
+    return JSONResponse(
+        content={
+            "status": "success",
+            "app": "POST GYM",
+            "exported_at": datetime.utcnow().isoformat(),
+            "total_records": len(records),
+            "data": records
+        },
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+
+# --- MULLVAD-STYLE ANONYMOUS ACCOUNTS & MONETIZATION ENDPOINTS ---
+
+@app.post("/api/account/generate")
+async def api_generate_account():
+    """Membuat 16-digit Account ID baru tanpa email / nama / password (Cypherpunk Privacy)"""
+    return generate_anonymous_account()
+
+@app.get("/api/account/status")
+async def api_account_status(id: str):
+    """Mengecek status Free / Pro serta sisa masa aktif akun"""
+    if not id:
+        return {"status": "error", "message": "Query param 'id' diperlukan"}
+    return get_account_status(id)
+
+@app.post("/api/account/redeem")
+async def api_redeem_voucher(req: dict):
+    """Menebus voucher langganan PRO (contoh: PGYM-PRO-2026)"""
+    account_id = req.get("account_id")
+    voucher_code = req.get("voucher_code")
+    if not account_id or not voucher_code:
+        return {"status": "error", "message": "Account ID dan Kode Voucher wajib diisi!"}
+    return redeem_voucher_code(account_id, voucher_code)
+
+@app.post("/api/account/simulate-qris")
+async def api_simulate_qris(req: dict):
+    """Simulasi pembayaran instan QRIS untuk presentasi dosen"""
+    account_id = req.get("account_id")
+    duration = int(req.get("duration_days", 30))
+    if not account_id:
+        return {"status": "error", "message": "Account ID wajib diisi!"}
+    return simulate_qris(account_id, duration)
+
 
 # --- SERVE FRONTEND & PROCESSED MEDIA ---
 frontend_path = os.path.join(os.path.dirname(__file__), "../frontend")
