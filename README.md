@@ -1,92 +1,104 @@
-# POST GYM 🏋️‍♂️🤖
+# POST GYM 🏋️‍♂️
 
-> **100% Offline Edge-AI Gym Logger with Progressive Overload & Gamification**  
-> *Catat latihan sesukamu pakai bahasa gaul gym — AI lokal yang urus strukturnya.*
-
----
-
-## 📌 Ringkasan Proyek
-
-Kebanyakan aplikasi gym (seperti Strong atau JEFIT) memaksa pengguna memilih latihan dari *dropdown* panjang dan menginput set/rep satu per satu. Hal ini menimbulkan friksi tinggi saat sedang beristirahat antar-set.
-
-**POST GYM** menyelesaikan masalah ini dengan pendekatan **Free-Text First**:
-- Ketik bebas seperti di aplikasi Notes (contoh: `bench press 60kg 8x3, set terakhir gagal rep ke-7`).
-- **Small Language Model (SLM)** lokal mem-parsing teks tersebut secara otomatis menjadi data terstruktur JSON.
-- **Rule Engine Deterministik** menghitung rekomendasi beban berikutnya berdasarkan prinsip *Double Progression* tanpa risiko halusinasi angka.
-- **100% Offline & Private**: Data tidak pernah dikirim ke Cloud. Model berjalan di perangkat lokal menggunakan `llama.cpp` dengan akselerasi hardware Vulkan.
+> Tracker latihan gym minimalis, cepat, dan 100% offline. Dibuat karena aplikasi gym mainstream (Strong, Hevy) terlalu ribet dipakai pas tangan lagi gemetaran di sela-sela set latihan.
 
 ---
 
-## ✨ Fitur Utama
+## Kenapa Bikin Aplikasi Ini?
 
-- ✍️ **Free-Text Natural Language Logging**: Bebas nulis nama gerakan singkatan (`bp`, `rdl`, `jm press`), bahasa campur Indonesia-Inggris (`each`, `gagal rep 7`, `bar only`), maupun format repetisi (`10x3`, `8 8 7`).
-- 🔒 **100% Local & Privacy-Preserving**: Model AI dijalankan secara lokal di laptop/PC. Catatan beban angkatan Anda aman dan tidak pernah dikirim ke server pihak ketiga.
-- 🎯 **Rule Engine & Progressive Overload**: Rekomendasi beban deterministik menggunakan metode *Double Progression* (deteksi deload -5% saat underperform, dan saran kenaikan beban +2.5kg saat batas rep tercapai).
-- 📈 **Progress & Consistency Tracking**: Grafik interaktif konsistensi latihan mingguan/bulanan dan perkembangan beban maksimal per gerakan (Chart.js).
-- 🎮 **Gamifikasi RPG**: Dapatkan XP setiap sesi latihan untuk naik level dari *Couch Potato* (Level 1) hingga *Greek God* (Level 13+).
-- 📱 **Mobile & Low-Spec Friendly**: Frontend berbasis Alpine.js dengan ukuran total bundle **< 100 KB** (tanpa butuh *node_modules* atau *build tools*).
+Sebagian besar aplikasi pencatat gym di Play Store atau App Store punya masalah yang sama:
+1. **Terlalu banyak klik & dropdown**: Pas lagi ngos-ngosan abis set berat, kita dipaksa nyari nama alat dari daftar panjang, ngetik beban, dan ngisi repetisi satu per satu.
+2. **Paywall berlebihan**: Fitur esensial kayak grafik perkembangan, riwayat lengkap, atau bikin jadwal latihan sering dikunci di balik langganan bulanan mahal.
+3. **Data dikunci (Vendor Lock-in)**: Susah buat ngekstrak data latihan sendiri ke Excel atau backup lokal.
+4. **Harus login & rawan tracking**: Minta email, nomor HP, atau akun Google cuma buat nyatet angka angkatan beban.
+
+**POST GYM** fokus ke hal sederhana: **buka aplikasi, catat dalam 1 tap, dan simpan data sepenuhnya di perangkat sendiri.**
 
 ---
 
-## 🏛️ Arsitektur Sistem
+## Fitur Utama
+
+### 1. 1-Tap Quick Logger (Frictionless UX)
+- Jadwal latihan hari ini otomatis tampil di layar utama.
+- Beban dan repetisi dari sesi sebelumnya langsung terisi otomatis.
+- Cukup satu sentuhan tombol **"+ Catat Set"**, set langsung tercatat tanpa perlu ngetik ulang. Ada tombol tactile stepper (`-` / `+`) kalau bebannya beda.
+
+### 2. Competitive Athletic Rank (Anti-Ego Lifting)
+- Sistem ranking atletik bertingkat mirip game kompetitif (dari *Rookie Lifter*, *Bronze Athlete*, *Silver Grinder*, hingga *Grandmaster Athletic*).
+- **Anti-Ego Lifting**: Ranking tidak cuma dihitung dari angka beban mentah (yang sering bikin orang angkat beban ngawur lalu cedera), melainkan dari **Work Capacity** (akumulasi volume kerja yang bersih, konsistensi repetisi, dan pemulihan).
+
+### 3. Match Summary & Strain Telemetry
+- Setiap kali sesi latihan diselesaikan, muncul ringkasan ala *match victory screen*:
+  - **Skor Strain (0–21)**: Mengukur tingkat kelelahan dan intensitas sesi (mirip algoritma telemetry WHOOP).
+  - **Total Tonnage**: Akumulasi total kilogram beban yang diangkat hari ini.
+  - **Rank Points (RP)**: Poin kenaikan pangkat yang didapat dari sesi tersebut.
+
+### 4. Akun Privat Tanpa Identitas (Model Mullvad VPN)
+- Tidak ada form registrasi, email, password, atau nomor handphone.
+- Setiap pengguna mendapatkan **16-digit ID acak unik** (contoh: `GYM-4829-1092-8834`).
+- Pindah perangkat cukup dengan memasukkan 16-digit ID tersebut. Database SQLite menyimpannya secara rapi.
+
+### 5. Bebas Lock-in (Export CSV & JSON)
+- Data latihan adalah hak milik pengguna sepenuhnya.
+- Tersedia tombol 1-klik untuk mengunduh seluruh riwayat sesi dalam format **CSV** (bisa langsung dibuka di Microsoft Excel / Google Sheets) maupun **JSON** mentah.
+
+### 6. Edge AI Lokal (100% Offline & Private)
+Fitur AI dijalankan sepenuhnya di CPU/GPU lokal tanpa mengirim data keluar laptop:
+- **Gym Slang Free-Text Parser**: Kalau lagi malas nge-tap tombol dan lebih suka ngetik cepat di notes pakai bahasa gaul gym Indo (contoh: `"letpul 45kg 3 set trs bisep krol 10kg sampe tremor"`), Small Language Model (**Qwen 2.5 1.5B via llama.cpp**) akan otomatis mem-parsing teks acak tersebut menjadi data set dan repetisi terstruktur.
+- **Squat Pose Form Checker**: Menggunakan Computer Vision (**YOLOv8 Pose**) untuk mendeteksi kedalaman squat (*hip crease* relatif terhadap lutut) dan menghitung repetisi valid langsung dari video rekaman.
+
+### 7. Dark & Light Mode Berkontras Tinggi
+- Tampilan Dark Mode (Zinc Pitch `#09090b` & Emerald `#22c55e`) yang hemat daya.
+- Tampilan Light Mode (Clean Slate) dengan kontras teks tajam (WCAG AA), tidak silau dan tidak pudar di bawah terik lampu gym.
+
+---
+
+## Arsitektur & Cara Kerja
 
 ```
 ┌────────────────────────────────────────────────────────┐
-│             Client Device (HP / Browser)               │
-│               Alpine.js SPA & Chart.js                 │
+│                   Frontend Client                      │
+│        Alpine.js + Vanilla CSS + Chart.js (SPA)        │
+│          Ukuran bundle total < 100 KB (No Node)        │
 └───────────────────────────┬────────────────────────────┘
-                            │ HTTP POST /api/parse
+                            │ REST API (JSON)
                             ▼
 ┌────────────────────────────────────────────────────────┐
-│           FastAPI Server (Python 3.11+)                │
-│  - Heuristic Preprocessor (Regex multiplier expansion) │
-│  - JSON Schema Validator & Deduplication               │
+│                FastAPI Backend (Python)                │
+│  - Endpoint Quick Log, Jadwal, History, Export, Rank   │
+│  - Rule Engine Double Progression & Anti-Ego Logic     │
+│  - Mullvad-style Anonymous Account & Voucher Auth      │
 └─────────────┬────────────────────────────┬─────────────┘
-              │ ChatML + Schema            │ CRUD
+              │                            │
               ▼                            ▼
 ┌───────────────────────────┐  ┌─────────────────────────┐
-│   llama.cpp (Vulkan)      │  │    SQLite Database      │
-│ Qwen2.5-1.5B-Instruct     │  │      gymmate.db         │
-│ GGUF Q4_K_M (~940 MB)     │  │  (Sessions, Sets, Logs) │
-└───────────────────────────┘  └───────────┬─────────────┘
-                                           │ Query
-                                           ▼
-                               ┌─────────────────────────┐
-                               │   Python Rule Engine    │
-                               │   (Double Progression)  │
-                               └─────────────────────────┘
+│   llama.cpp (Vulkan GPU)  │  │   Database SQLite       │
+│  Qwen 2.5 1.5B (GGUF)     │  │   gymmate.db            │
+│  (Parsing Bahasa Gaul)    │  │   (Relasional & Cepat)  │
+└───────────────────────────┘  └─────────────────────────┘
+              │
+              ▼
+┌───────────────────────────┐
+│   YOLOv8-Pose (CV Model)  │
+│   (Form Check Squat)      │
+└───────────────────────────┘
 ```
 
 ---
 
-## 🛠️ Tech Stack
+## Spesifikasi & Dependensi
 
-| Komponen | Teknologi | Keterangan |
+| Komponen | Teknologi | Alasan Pemilihan |
 |---|---|---|
-| **Frontend** | HTML5, CSS3, Alpine.js, Chart.js | Zero build step, bundle < 100KB, mobile-first dark theme |
-| **Backend** | Python 3.11+, FastAPI, Uvicorn | Asynchronous REST API |
-| **Database** | SQLite3 | Single-file zero-configuration database |
-| **AI Inference** | `llama.cpp` (Vulkan Backend) | Akselerasi GPU Vulkan untuk NVIDIA MX350 & Intel UHD |
-| **Model** | Qwen2.5-1.5B-Instruct (GGUF Q4_K_M) | Footprint ~940MB, multilingual (Indonesian/English) |
-| **Fine-Tuning** | QLoRA via Unsloth (Google Colab T4) | Dilatih khusus untuk domain gym slang & shorthand |
+| **Frontend** | HTML5, CSS3, Alpine.js, Chart.js | Ringan, responsif di HP, tanpa build-step (`node_modules`), buka langsung jalan. |
+| **Backend** | Python 3.11+, FastAPI, Uvicorn | Asynchronous, performa tinggi, dan mudah diintegrasikan dengan modul AI/CV. |
+| **Database** | SQLite3 | Portabel, zero-configuration, cukup satu file `.db`. |
+| **SLM Inference** | `llama.cpp` (Vulkan Backend) | Akselerasi hardware lancar bahkan di laptop spek terjangkau (NVIDIA MX350 / Intel iGPU). |
+| **Computer Vision** | Ultralytics YOLOv8-pose | Pelacakan landmark sendi tubuh secara akurat dan cepat. |
 
 ---
 
-## ⚡ Performa Hardware (Benchmarked on Acer Aspire 5)
-
-Sistem diuji pada spesifikasi laptop entry-level (Intel Core i3-1115G4, RAM 8GB, GPU NVIDIA GeForce MX350 2GB):
-
-| Metrik | Hasil Pengujian |
-|---|---|
-| **VRAM Consumption** | ~1.26 GB / 2.00 GB (Sisa ruang ~740 MB aman) |
-| **Generation Speed** | ~32 – 38 tokens / detik |
-| **Prompt Processing** | ~350 – 550 tokens / detik |
-| **Time to First Token** | ~0.9 – 1.4 detik |
-| **Total Parse Latency** | ~3 – 5 detik per log sesi lengkap |
-
----
-
-## 🚀 Panduan Instalasi & Menjalankan
+## Panduan Instalasi & Menjalankan
 
 ### 1. Clone Repository
 ```bash
@@ -94,80 +106,81 @@ git clone https://github.com/IqbaltopG/PostGym-PG-.git
 cd PostGym-PG-
 ```
 
-### 2. Setup Environment Python
+### 2. Siapkan Python Virtual Environment
 ```bash
 python3 -m venv venv
 source venv/bin/activate
 pip install -r src/backend/requirements.txt
 ```
 
-### 3. Letakkan Model GGUF
-Download atau export model `Qwen2.5-1.5B-Instruct` format GGUF (`Q4_K_M`) dan letakkan di dalam folder `models/`:
+### 3. Unduh Bobot Model GGUF (Untuk Fitur AI Parser)
+Letakkan file model `Qwen2.5-1.5B-Instruct` format GGUF (`Q4_K_M`) di dalam direktori `models/`:
 ```bash
-# Struktur: models/Qwen2.5-1.5B-Instruct.Q4_K_M.gguf
+# Struktur: models/Qwen2.5-1.5B-Instruct.Q4_K_M-V2.gguf
 ```
 
-### 4. Jalankan AI Inference Server (`llama.cpp`)
-Jalankan `llama-server` dengan akselerasi GPU:
+Jalankan inference server:
 ```bash
 ./llama.cpp/build/bin/llama-server \
-  -m models/Qwen2.5-1.5B-Instruct.Q4_K_M.gguf \
+  -m models/Qwen2.5-1.5B-Instruct.Q4_K_M-V2.gguf \
   -ngl 99 \
   -c 2048 \
   --port 8080
 ```
 
-### 5. Jalankan Backend FastAPI
+### 4. Jalankan Server FastAPI
 Di terminal baru:
 ```bash
 source venv/bin/activate
 cd src/backend
-uvicorn main:app --host 0.0.0.0 --port 8000
+uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-Buka **`http://localhost:8000`** di browser laptop Anda, atau buka **`http://<IP-Laptop-Anda>:8000`** langsung dari browser handphone (pastikan terhubung ke WiFi yang sama).
+Akses aplikasi di browser:
+- Dari laptop: `http://localhost:8000`
+- Dari HP (WiFi yang sama): `http://<IP-Laptop-Kamu>:8000`
 
 ---
 
-## 📁 Struktur Direktori
+## Pengujian Otomatis (Integration Tests)
+
+Seluruh endpoint backend, validasi akun Mullvad, voucher, logger, rank points, dan ekspor data diuji secara menyeluruh melalui test suite:
+
+```bash
+python3 tests/test_all_endpoints.py
+```
+
+Semua 11 skenario pengujian utama (Akun, Voucher, Jadwal, Quick Log, History, Double Progression, Ekspor CSV/JSON, Health Check) wajib berstatus **PASSED (100%)**.
+
+---
+
+## Struktur Direktori
 
 ```
 aplikasi-gym/
-├── training/                   # Otomatisasi Pipeline & Workflow Fine-Tuning
-│   ├── auto_pipeline.py        # Single automated script: split raw log -> build ChatML JSONL
-│   └── gymmate-finetune.ipynb  # Google Colab notebook untuk QLoRA fine-tuning (T4 GPU)
-├── dataset/                    # Data mentah & anotasi lokal (100% dikecualikan dari git)
-├── docs/                       # Dokumentasi arsitektur & PRD
-├── models/                     # Tempat file bobot GGUF (dikecualikan dari git)
 ├── src/
-│   ├── backend/                # Server FastAPI & Logic
-│   │   ├── main.py             # Endpoint API & integrasi llama-server
-│   │   ├── database.py         # Skema & query SQLite
-│   │   ├── rules.py            # Rule engine Double Progression
-│   │   └── requirements.txt    # Dependensi backend
-│   └── frontend/               # Single Page Application
-│       ├── index.html          # UI antarmuka utama (4 tab)
-│       ├── app.js              # Logika state reaktif (Alpine.js)
-│       ├── style.css           # Styling mobile dark-mode
-│       ├── alpine.min.js       # Framework reaktif lokal
-│       └── chart.min.js        # Library grafik lokal
-├── README.md
+│   ├── backend/
+│   │   ├── main.py             # Endpoint API FastAPI
+│   │   ├── database.py         # Skema SQLite, operasi CRUD, & rank system
+│   │   ├── rules.py            # Rule engine progresif & kalkulasi strain
+│   │   ├── pose_tracker.py     # Modul Computer Vision YOLOv8 pose
+│   │   └── requirements.txt    # Daftar dependensi Python
+│   └── frontend/
+│       ├── index.html          # Antarmuka SPA utama
+│       ├── app.js              # State management Alpine.js
+│       ├── style.css           # Design tokens, dark & light theme
+│       ├── alpine.min.js       # Framework reaktif frontend
+│       └── chart.min.js        # Rendering grafik performa
+├── tests/
+│   └── test_all_endpoints.py   # Suite uji otomatis menyeluruh
+├── training/                   # Skrip pipeline dataset slang & fine-tuning
+├── models/                     # Tempat model GGUF & YOLO (dikecualikan dari git)
+├── README.md                   # Dokumentasi teknis proyek
 └── .gitignore
 ```
 
 ---
 
-## 🔮 Roadmap Pengembangan Lanjutan
+## Lisensi & Privasi
 
-- [x] Natural Language Parsing via Local SLM (Qwen 2.5 1.5B)
-- [x] Heuristic Preprocessing (Regex multiplier & decimal handler)
-- [x] Double Progression Rule Engine
-- [x] Interactive Charting & RPG Gamification Leveling
-- [ ] **Video Form Check (CV)**: Analisis sudut sendi & rep counting otomatis untuk gerakan Squat menggunakan YOLOv8n-pose.
-- [ ] **Data Export**: Fitur ekspor riwayat latihan ke format CSV & JSON.
-
----
-
-## 📜 Lisensi & Catatan Privasi
-
-Aplikasi ini dikembangkan untuk keperluan akademik dan penggunaan pribadi. File `.gitignore` telah dikonfigurasi untuk mengecualikan model GGUF dan database pribadi. Catatan beban angkatan Anda tetap berada 100% di perangkat Anda sendiri.
+Proyek ini dibangun untuk kebutuhan tugas besar akademik dan penggunaan fitness harian. Seluruh data latihan, akun, dan video pose bersifat 100% privat dan tersimpan lokal di perangkat Anda tanpa analitik pihak ketiga.

@@ -461,14 +461,16 @@ document.addEventListener('alpine:init', () => {
 
         updateChartThemes() {
             const isDark = this.theme === 'dark';
-            const gridColor = isDark ? '#27272a' : '#e4e4e7';
-            const textColor = isDark ? '#a1a1aa' : '#52525b';
-            const titleColor = isDark ? '#fafafa' : '#09090b';
+            const gridColor = isDark ? '#27272a' : '#cbd5e1';
+            const textColor = isDark ? '#a1a1aa' : '#0f172a';
+            const titleColor = isDark ? '#fafafa' : '#0f172a';
 
             if (this.chartRecapInstance) {
                 try {
                     this.chartRecapInstance.options.scales.x.ticks.color = textColor;
                     this.chartRecapInstance.options.scales.y.ticks.color = textColor;
+                    this.chartRecapInstance.options.scales.x.ticks.font = { weight: isDark ? '500' : '700' };
+                    this.chartRecapInstance.options.scales.y.ticks.font = { weight: isDark ? '500' : '700' };
                     this.chartRecapInstance.options.scales.y.grid.color = gridColor;
                     this.chartRecapInstance.options.plugins.legend.labels.color = titleColor;
                     this.chartRecapInstance.update('none');
@@ -479,6 +481,8 @@ document.addEventListener('alpine:init', () => {
                 try {
                     this.chartProgInstance.options.scales.x.ticks.color = textColor;
                     this.chartProgInstance.options.scales.y.ticks.color = textColor;
+                    this.chartProgInstance.options.scales.x.ticks.font = { weight: isDark ? '500' : '700' };
+                    this.chartProgInstance.options.scales.y.ticks.font = { weight: isDark ? '500' : '700' };
                     this.chartProgInstance.options.scales.y.grid.color = gridColor;
                     this.chartProgInstance.options.plugins.legend.labels.color = titleColor;
                     if (this.chartProgInstance.data.datasets && this.chartProgInstance.data.datasets[0]) {
@@ -513,9 +517,9 @@ document.addEventListener('alpine:init', () => {
                 const values = data.map(d => d.sessions);
                 
                 const isDark = this.theme === 'dark';
-                const gridColor = isDark ? '#27272a' : '#e4e4e7';
-                const textColor = isDark ? '#a1a1aa' : '#52525b';
-                const titleColor = isDark ? '#fafafa' : '#09090b';
+                const gridColor = isDark ? '#27272a' : '#cbd5e1';
+                const textColor = isDark ? '#a1a1aa' : '#0f172a';
+                const titleColor = isDark ? '#fafafa' : '#0f172a';
 
                 const canvas = document.getElementById('recapChart');
                 if (!canvas) return;
@@ -527,6 +531,8 @@ document.addEventListener('alpine:init', () => {
                     this.chartRecapInstance.data.datasets[0].data = values;
                     this.chartRecapInstance.options.scales.x.ticks.color = textColor;
                     this.chartRecapInstance.options.scales.y.ticks.color = textColor;
+                    this.chartRecapInstance.options.scales.x.ticks.font = { weight: isDark ? '500' : '700' };
+                    this.chartRecapInstance.options.scales.y.ticks.font = { weight: isDark ? '500' : '700' };
                     this.chartRecapInstance.options.scales.y.grid.color = gridColor;
                     this.chartRecapInstance.options.plugins.legend.labels.color = titleColor;
                     this.chartRecapInstance.update();
@@ -567,19 +573,23 @@ document.addEventListener('alpine:init', () => {
                                 grid: { color: gridColor }, 
                                 ticks: { 
                                     color: textColor,
+                                    font: { weight: isDark ? '500' : '700' },
                                     precision: 0 
                                 } 
                             },
                             x: { 
                                 grid: { display: false }, 
-                                ticks: { color: textColor } 
+                                ticks: { 
+                                    color: textColor,
+                                    font: { weight: isDark ? '500' : '700' }
+                                } 
                             }
                         },
                         plugins: { 
                             legend: { 
                                 labels: { 
                                     color: titleColor, 
-                                    font: { family: 'inherit' } 
+                                    font: { family: 'inherit', weight: isDark ? '600' : '700' } 
                                 } 
                             } 
                         }
@@ -614,9 +624,9 @@ document.addEventListener('alpine:init', () => {
                 const values = data.map(d => d.max_weight);
                 
                 const isDark = this.theme === 'dark';
-                const gridColor = isDark ? '#27272a' : '#e4e4e7';
-                const textColor = isDark ? '#a1a1aa' : '#52525b';
-                const titleColor = isDark ? '#fafafa' : '#09090b';
+                const gridColor = isDark ? '#27272a' : '#cbd5e1';
+                const textColor = isDark ? '#a1a1aa' : '#0f172a';
+                const titleColor = isDark ? '#fafafa' : '#0f172a';
 
                 if (!canvas) return;
 
@@ -629,6 +639,8 @@ document.addEventListener('alpine:init', () => {
                     }
                     this.chartProgInstance.options.scales.x.ticks.color = textColor;
                     this.chartProgInstance.options.scales.y.ticks.color = textColor;
+                    this.chartProgInstance.options.scales.x.ticks.font = { weight: isDark ? '500' : '700' };
+                    this.chartProgInstance.options.scales.y.ticks.font = { weight: isDark ? '500' : '700' };
                     this.chartProgInstance.options.scales.y.grid.color = gridColor;
                     this.chartProgInstance.options.plugins.legend.labels.color = titleColor;
                     this.chartProgInstance.update();
@@ -668,10 +680,30 @@ document.addEventListener('alpine:init', () => {
                             duration: 350
                         },
                         scales: {
-                            y: { beginAtZero: true, grid: { color: gridColor }, ticks: { color: textColor } },
-                            x: { grid: { display: false }, ticks: { color: textColor } }
+                            y: { 
+                                beginAtZero: true, 
+                                grid: { color: gridColor }, 
+                                ticks: { 
+                                    color: textColor,
+                                    font: { weight: isDark ? '500' : '700' }
+                                } 
+                            },
+                            x: { 
+                                grid: { display: false }, 
+                                ticks: { 
+                                    color: textColor,
+                                    font: { weight: isDark ? '500' : '700' }
+                                } 
+                            }
                         },
-                        plugins: { legend: { labels: { color: titleColor, font: { family: 'inherit' } } } }
+                        plugins: { 
+                            legend: { 
+                                labels: { 
+                                    color: titleColor, 
+                                    font: { family: 'inherit', weight: isDark ? '600' : '700' } 
+                                } 
+                            } 
+                        }
                     }
                 });
             } catch(e) { 
