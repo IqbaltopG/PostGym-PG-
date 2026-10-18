@@ -680,4 +680,12 @@ def get_today_session_summary(date_str=None):
         "rp_earned": rp_earned
     }
 
+def get_all_distinct_exercises():
+    """Mengembalikan daftar semua gerakan unik yang pernah dicatat untuk dropdown grafik"""
+    conn = get_connection()
+    rows = conn.execute("SELECT DISTINCT canonical, name FROM exercises GROUP BY canonical ORDER BY name ASC").fetchall()
+    conn.close()
+    return [{"canonical": r["canonical"], "name": r["name"]} for r in rows]
+
+
 

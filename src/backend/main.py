@@ -31,9 +31,15 @@ from database import (
     simulate_qris,
     get_competitive_rank_info,
     get_today_session_summary,
+    get_exercise_progress,
+    get_workout_recap,
+    get_all_distinct_exercises,
     get_connection
 )
 from rules import calculate_next_target
+from pose_analyzer import PoseAnalyzer
+
+pose_analyzer_instance = PoseAnalyzer()
 
 app = FastAPI(title="POST GYM Backend")
 
@@ -684,8 +690,6 @@ async def get_history():
     """Endpoint untuk mengambil semua data riwayat dari database"""
     return get_all_history()
 
-from database import get_exercise_progress, get_workout_recap
-
 @app.get("/api/progress/exercise/{canonical_name}")
 async def api_exercise_progress(canonical_name: str):
     return get_exercise_progress(canonical_name)
@@ -696,11 +700,7 @@ async def api_recap(period: str = "month"):
 
 @app.get("/api/exercises/list")
 async def get_exercises_list():
-    import database
-    conn = database.get_connection()
-    rows = conn.execute("SELECT DISTINCT canonical, name FROM exercises GROUP BY canonical ORDER BY name ASC").fetchall()
-    conn.close()
-    return [{"canonical": r["canonical"], "name": r["name"]} for r in rows]
+    return get_all_distinct_exercises()
 
 @app.get("/api/schedule")
 async def api_get_schedule():
@@ -710,9 +710,6 @@ async def api_get_schedule():
 async def api_save_schedule(new_sched: dict):
     save_schedule(new_sched)
     return {"status": "success"}
-
-from pose_analyzer import PoseAnalyzer
-pose_analyzer_instance = PoseAnalyzer()
 
 # --- AI VIDEO FORM CHECK ENDPOINT ---
 @app.post("/api/analyze-video")
