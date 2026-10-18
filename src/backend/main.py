@@ -29,6 +29,8 @@ from database import (
     get_account_status,
     redeem_voucher_code,
     simulate_qris,
+    get_competitive_rank_info,
+    get_today_session_summary,
     get_connection
 )
 from rules import calculate_next_target
@@ -61,33 +63,9 @@ class QuickLogRequest(BaseModel):
 
 @app.get("/api/today")
 async def get_today_plan():
-    """Mengembalikan plan hari ini beserta history gerakan dan Gamification"""
-    # Hitung level RPG
-    from database import get_connection
-    conn = get_connection()
-    total_sessions = conn.execute("SELECT COUNT(*) FROM workout_sessions").fetchone()[0]
-    conn.close()
-    
-    # Logika Gelar
-    level = (total_sessions // 5) + 1
-    if level <= 2: title = "🐣 Couch Potato"
-    elif level <= 5: title = "🦍 Gym Bro"
-    elif level <= 8: title = "🦾 Iron Man"
-    elif level <= 12: title = "🔱 Poseidon"
-    else: title = "⚡ Greek God"
-
-    # Detail progress level
-    sessions_in_level = total_sessions % 5
-    sessions_needed = 5 - sessions_in_level
-    progress_percent = int((sessions_in_level / 5) * 100)
-
-    gamification_info = {
-        "level": level,
-        "title": title,
-        "total_sessions": total_sessions,
-        "sessions_needed": sessions_needed,
-        "progress_percent": progress_percent
-    }
+    """Mengembalikan plan hari ini beserta history gerakan dan Competitive Ranking"""
+    rank_info = get_competitive_rank_info()
+    today_session_summary = get_today_session_summary()
 
     DAY_NAME_ID = {
         "monday": "senin",
@@ -103,19 +81,29 @@ async def get_today_plan():
     
     schedule = get_schedule()
     if not schedule or today_name not in schedule:
-        return {"name": f"Jadwal {today_name.capitalize()}", "gamification": gamification_info, "exercises": []}
+        return {
+            "name": f"Jadwal {today_name.capitalize()}",
+            "rank": rank_info,
+            "gamification": rank_info,
+            "session_summary": today_session_summary,
+            "exercises": []
+        }
         
     muscle_groups = schedule[today_name]
     if muscle_groups == ["rest"]:
         return {
             "name": f"Jadwal {today_name.capitalize()} (Hari Istirahat / Rest Day 🛌)",
-            "gamification": gamification_info,
+            "rank": rank_info,
+            "gamification": rank_info,
+            "session_summary": today_session_summary,
             "exercises": []
         }
 
     plan = {
         "name": f"{today_name.capitalize()} ({', '.join(muscle_groups).title()})",
-        "gamification": gamification_info,
+        "rank": rank_info,
+        "gamification": rank_info,
+        "session_summary": today_session_summary,
         "exercises": []
     }
     
@@ -191,6 +179,8 @@ async def api_quick_log(req: QuickLogRequest):
             note=req.note,
             date_str=req.date
         )
+        res["rank"] = get_competitive_rank_info()
+        res["session_summary"] = get_today_session_summary(req.date)
         return res
     except Exception as e:
         return {"status": "error", "message": str(e)}
@@ -203,7 +193,11 @@ async def api_quick_log_undo(req: dict):
         date_str = req.get("date")
         if not canonical:
             return {"status": "error", "message": "Canonical name required"}
-        return undo_last_set(canonical, date_str)
+        res = undo_last_set(canonical, date_str)
+        if isinstance(res, dict):
+            res["rank"] = get_competitive_rank_info()
+            res["session_summary"] = get_today_session_summary(date_str)
+        return res
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
@@ -677,7 +671,11 @@ async def save_log(data: dict):
     """Menerima JSON yang sudah diedit/divalidasi user dan menyimpannya ke DB"""
     try:
         save_workout_log(data)
-        return {"status": "success"}
+        return {
+            "status": "success",
+            "rank": get_competitive_rank_info(),
+            "session_summary": get_today_session_summary(data.get("date"))
+        }
     except Exception as e:
         return {"status": "error", "message": str(e)}
 

@@ -2,10 +2,14 @@ document.addEventListener('alpine:init', () => {
     Alpine.data('gymApp', () => ({
         activeTab: 'jadwal', // Tab aktif: jadwal, log, vision, history, progress
         todayDate: new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'short' }),
-        showRankModal: false, // Modal detail rank RPG
+        showRankModal: false, // Modal detail rank kompetitif
         showScheduleModal: false,
         showAccountModal: false,
         showCustomLogModal: false,
+        showVictoryModal: false, // Modal ringkasan sesi latihan (Victory screen)
+        
+        rankInfo: null, // Info ranking kompetitif
+        sessionSummary: null, // Ringkasan performa sesi hari ini (tonase, strain, RP gain)
         
         todaySchedule: { name: "Loading...", exercises: [] },
         logs: [], // Untuk tab history (riwayat)
@@ -165,6 +169,8 @@ document.addEventListener('alpine:init', () => {
             try {
                 const response = await fetch('/api/today');
                 this.todaySchedule = await response.json();
+                if (this.todaySchedule.rank) this.rankInfo = this.todaySchedule.rank;
+                if (this.todaySchedule.session_summary) this.sessionSummary = this.todaySchedule.session_summary;
 
                 // Inisialisasi draft input per exercise (berdasarkan rekomendasi / riwayat terakhir)
                 if (this.todaySchedule.exercises) {
@@ -232,21 +238,19 @@ document.addEventListener('alpine:init', () => {
                 if (result.status === 'success') {
                     exercise.today_sets = result.today_sets;
                     exercise.today_total_sets = result.today_sets.length;
+                    if (result.rank) this.rankInfo = result.rank;
+                    if (result.session_summary) this.sessionSummary = result.session_summary;
                     
                     const count = result.today_sets.length;
-                    this.quickLogFeedback[canonical] = `✅ Set ${count} (${payload.weight_kg}kg × ${payload.reps} reps) tercatat!`;
+                    const rpNotice = result.session_summary ? ` (+${result.session_summary.rp_earned} RP)` : '';
+                    this.quickLogFeedback[canonical] = `✅ Set ${count} (${payload.weight_kg}kg × ${payload.reps} reps) tercatat!${rpNotice}`;
                     setTimeout(() => {
                         if (this.quickLogFeedback[canonical]?.startsWith('✅')) {
                             this.quickLogFeedback[canonical] = '';
                         }
                     }, 3500);
 
-                    // Refresh gamification & history
                     this.loadHistory();
-                    // Ambil update level gamification
-                    fetch('/api/today').then(r => r.json()).then(data => {
-                        if (data.gamification) this.todaySchedule.gamification = data.gamification;
-                    });
                 } else {
                     alert('Gagal mencatat set: ' + (result.message || 'Error'));
                 }
@@ -428,14 +432,17 @@ document.addEventListener('alpine:init', () => {
                 
                 const result = await response.json();
                 if (result.status === "success") {
-                    alert("Berhasil disimpan ke Database!");
                     this.rawLogText = '';
                     this.parsedResult = null;
                     this.editableJson = '';
-                    
-                    this.loadSchedule();
-                    this.loadHistory();
-                    this.activeTab = 'history';
+                    if (result.rank) this.rankInfo = result.rank;
+                    if (result.session_summary) {
+                        this.sessionSummary = result.session_summary;
+                        this.showVictoryModal = true;
+                    }
+                    await this.loadSchedule();
+                    await this.loadHistory();
+                    this.activeTab = 'jadwal';
                 } else {
                     alert("Gagal menyimpan: " + result.message);
                 }

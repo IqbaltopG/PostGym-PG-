@@ -90,5 +90,18 @@ class TestPostGymNewFeatures(unittest.TestCase):
             self.assertEqual(qris_res["status"], "success")
             self.assertTrue(qris_res["is_pro"])
 
+    def test_05_competitive_rank_and_session_summary(self):
+        with urllib.request.urlopen(f"{BASE_URL}/api/today") as res:
+            self.assertEqual(res.status, 200)
+            data = json.loads(res.read().decode())
+            self.assertIn("rank", data)
+            rank = data["rank"]
+            self.assertIn("total_rp", rank)
+            self.assertIn("current_tier", rank)
+            self.assertIn("tier_icon", rank)
+            self.assertIn("progress_percent", rank)
+            self.assertIn("all_tiers", rank)
+            self.assertGreaterEqual(rank["total_rp"], 0)
+
 if __name__ == "__main__":
     unittest.main()

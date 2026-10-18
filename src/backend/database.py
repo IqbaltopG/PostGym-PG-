@@ -555,3 +555,129 @@ def simulate_qris(account_id: str, duration_days: int = 30):
         "pro_expires_at": new_expires_at
     }
 
+
+# --- COMPETITIVE ATHLETIC RANK SYSTEM (ANTI-EGO LIFTING) ---
+
+def get_competitive_rank_info():
+    """
+    Sistem Ranking Kompetitif berbasis Work Capacity (Total Tonase) dan Konsistensi Latihan.
+    Menghilangkan ego lifting: poin didasarkan pada akumulasi beban kerja nyata dan disiplin sesi,
+    bukan sekadar 1 rep maksimal yang berisiko cidera.
+    """
+    conn = get_connection()
+    row = conn.execute('''
+        SELECT 
+            COUNT(DISTINCT ws.id) as sessions,
+            COUNT(s.id) as total_sets,
+            COALESCE(SUM(s.weight_kg * s.reps), 0) as total_volume
+        FROM workout_sessions ws
+        LEFT JOIN exercises e ON e.session_id = ws.id
+        LEFT JOIN sets s ON s.exercise_id = e.id
+    ''').fetchone()
+    conn.close()
+
+    sessions = row['sessions'] or 0
+    total_sets = row['total_sets'] or 0
+    total_volume = float(row['total_volume'] or 0)
+
+    # Formula RP: (Volume / 50) + (Sessions * 50)
+    volume_rp = int(total_volume / 50)
+    consistency_rp = sessions * 50
+    total_rp = volume_rp + consistency_rp
+
+    TIERS = [
+        ("Unranked (Recruit)", "⚪", 0, 499, "#71717a"),
+        ("Bronze I", "🟤", 500, 799, "#a16207"),
+        ("Bronze II", "🟤", 800, 1149, "#ca8a04"),
+        ("Bronze III", "🟤", 1150, 1499, "#d97706"),
+        ("Silver I", "🥈", 1500, 1999, "#94a3b8"),
+        ("Silver II", "🥈", 2000, 2499, "#cbd5e1"),
+        ("Silver III", "🥈", 2500, 2999, "#e2e8f0"),
+        ("Gold I", "🥇", 3000, 3599, "#eab308"),
+        ("Gold II", "🥇", 3600, 4299, "#facc15"),
+        ("Gold III", "🥇", 4300, 4999, "#fde047"),
+        ("Platinum I", "💠", 5000, 5799, "#38bdf8"),
+        ("Platinum II", "💠", 5800, 6699, "#0ea5e9"),
+        ("Platinum III", "💠", 6700, 7499, "#0284c7"),
+        ("Diamond I", "💎", 7500, 8499, "#22c55e"),
+        ("Diamond II", "💎", 8500, 9999, "#10b981"),
+        ("Immortal Athlete", "⚡", 10000, 999999, "#a855f7")
+    ]
+
+    current_tier = TIERS[0]
+    next_tier = TIERS[1]
+    
+    for i, t in enumerate(TIERS):
+        name, icon, min_rp, max_rp, color = t
+        if total_rp >= min_rp:
+            current_tier = t
+            next_tier = TIERS[i + 1] if i + 1 < len(TIERS) else None
+
+    tier_name, tier_icon, tier_min, tier_max, tier_color = current_tier
+
+    if next_tier:
+        next_name, _, next_min, _, _ = next_tier
+        rp_in_tier = total_rp - tier_min
+        rp_needed_for_next = tier_max - tier_min + 1
+        progress_pct = min(100, max(0, int((rp_in_tier / rp_needed_for_next) * 100)))
+        rp_to_next = next_min - total_rp
+    else:
+        next_name = "MAX RANK"
+        progress_pct = 100
+        rp_to_next = 0
+
+    return {
+        "total_rp": total_rp,
+        "volume_rp": volume_rp,
+        "consistency_rp": consistency_rp,
+        "total_volume_kg": round(total_volume, 1),
+        "total_sessions": sessions,
+        "total_sets": total_sets,
+        "current_tier": tier_name,
+        "tier_icon": tier_icon,
+        "tier_color": tier_color,
+        "next_tier": next_name,
+        "progress_percent": progress_pct,
+        "rp_to_next": rp_to_next,
+        "all_tiers": [
+            {"name": t[0], "icon": t[1], "min_rp": t[2], "max_rp": t[3], "color": t[4]}
+            for t in TIERS
+        ]
+    }
+
+def get_today_session_summary(date_str=None):
+    """Ringkasan performa sesi latihan hari ini (Work Capacity, Strain Intensity, RP Gain)"""
+    if not date_str:
+        date_str = datetime.today().strftime('%Y-%m-%d')
+    conn = get_connection()
+    session = conn.execute("SELECT id, session_note FROM workout_sessions WHERE date = ?", (date_str,)).fetchone()
+    if not session:
+        conn.close()
+        return None
+    session_id = session['id']
+    rows = conn.execute('''
+        SELECT e.canonical, e.name, s.weight_kg, s.reps
+        FROM exercises e
+        JOIN sets s ON s.exercise_id = e.id
+        WHERE e.session_id = ?
+    ''', (session_id,)).fetchall()
+    conn.close()
+
+    total_volume = sum(r['weight_kg'] * r['reps'] for r in rows)
+    total_sets = len(rows)
+    total_reps = sum(r['reps'] for r in rows)
+    
+    # Strain score 0-100 (mirip Whoop / Apple Watch)
+    strain_score = min(99, int((total_volume / 60) + (total_sets * 2.5)))
+    rp_earned = int((total_volume / 50) + (total_sets * 5) + 30)
+
+    return {
+        "date": date_str,
+        "total_sets": total_sets,
+        "total_reps": total_reps,
+        "total_volume_kg": round(total_volume, 1),
+        "strain_score": strain_score,
+        "rp_earned": rp_earned
+    }
+
+

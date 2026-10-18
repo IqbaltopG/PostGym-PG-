@@ -217,33 +217,45 @@ html, body {
     font-size: 0.68rem;
 }
 
-/* Gamification Badge */
-.gamification-badge {
+/* Competitive Athletic Rank Badge */
+.competitive-rank-badge, .gamification-badge {
     display: flex;
     align-items: center;
     gap: 6px;
-    background-color: var(--accent-emerald-light);
-    border: 1px solid rgba(34, 197, 94, 0.3);
-    padding: 6px 10px;
+    background-color: var(--card-elevated);
+    border: 1px solid var(--border-subtle);
+    padding: 5px 10px;
     border-radius: var(--radius-full);
     cursor: pointer;
     transition: all 0.2s ease;
 }
 
-.gamification-badge:hover {
+.competitive-rank-badge:hover, .gamification-badge:hover {
     border-color: var(--accent-emerald);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-.level-chip {
-    font-size: 0.7rem;
-    font-weight: 800;
-    color: var(--accent-emerald);
+.rank-icon-badge {
+    font-size: 0.95rem;
+    line-height: 1;
 }
 
-.rank-name {
-    font-size: 0.72rem;
+.rank-name-bold, .rank-name {
+    font-size: 0.75rem;
     font-weight: 700;
     color: var(--text-primary);
+    white-space: nowrap;
+}
+
+.rank-rp-pill, .level-chip {
+    font-size: 0.68rem;
+    font-weight: 800;
+    color: var(--accent-emerald);
+    background-color: var(--accent-emerald-light);
+    padding: 2px 7px;
+    border-radius: var(--radius-full);
+    font-family: var(--font-mono);
 }
 
 /* Theme Toggle Button */
@@ -327,6 +339,111 @@ html, body {
 .btn-compact-settings:hover {
     color: var(--text-primary);
     border-color: var(--border-hover);
+}
+
+/* Today's Workload & Strain Telemetry Banner */
+.today-performance-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: linear-gradient(135deg, var(--card-surface), var(--card-elevated));
+    border: 1px solid rgba(34, 197, 94, 0.35);
+    border-radius: var(--radius-lg);
+    padding: 12px 16px;
+    margin-bottom: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.today-performance-card:hover {
+    border-color: var(--accent-emerald);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(34, 197, 94, 0.15);
+}
+
+.perf-left {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.perf-status-line {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.pulse-indicator {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background-color: var(--accent-emerald);
+    box-shadow: 0 0 8px var(--accent-emerald);
+    animation: pulse-dot 2s infinite;
+}
+
+@keyframes pulse-dot {
+    0% { transform: scale(0.9); opacity: 0.7; }
+    50% { transform: scale(1.2); opacity: 1; }
+    100% { transform: scale(0.9); opacity: 0.7; }
+}
+
+.perf-tag {
+    font-size: 0.65rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    color: var(--accent-emerald);
+    text-transform: uppercase;
+}
+
+.perf-stats-inline {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.perf-stat-item strong {
+    color: var(--text-primary);
+}
+
+.perf-sep {
+    color: var(--text-muted);
+    opacity: 0.5;
+}
+
+.strain-chip {
+    color: var(--accent-emerald);
+}
+
+.strain-chip strong {
+    color: var(--accent-emerald) !important;
+}
+
+.perf-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.rp-gain-badge {
+    font-size: 0.8rem;
+    font-weight: 800;
+    color: #052e16;
+    background-color: var(--accent-emerald);
+    padding: 4px 9px;
+    border-radius: var(--radius-full);
+    font-family: var(--font-mono);
+    letter-spacing: 0.02em;
+}
+
+.perf-arrow {
+    font-size: 1.2rem;
+    color: var(--text-muted);
+    font-weight: 700;
 }
 
 /* ==========================================================================
@@ -1605,80 +1722,372 @@ html, body {
     color: var(--text-primary);
 }
 
-/* Rank Highlight Box */
-.rank-highlight-box {
+/* ==========================================================================
+   COMPETITIVE ATHLETIC RANK SYSTEM (ANTI-EGO LIFTING) MODAL
+   ========================================================================== */
+
+.rank-hero-box {
     text-align: center;
-    padding: 16px;
-    background-color: var(--card-elevated);
-    border-radius: var(--radius-md);
+    padding: 20px 16px;
+    background: linear-gradient(180deg, var(--card-elevated), var(--card-surface));
+    border: 2px solid var(--accent-emerald);
+    border-radius: var(--radius-lg);
+    margin-bottom: 14px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+}
+
+.rank-hero-icon {
+    font-size: 2.6rem;
+    margin-bottom: 4px;
+    filter: drop-shadow(0 2px 8px rgba(0,0,0,0.25));
+}
+
+.rank-hero-tier {
+    font-size: 1.45rem;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+}
+
+.rank-hero-rp {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    margin: 4px 0 10px 0;
+}
+
+.rp-unit {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    letter-spacing: 0.05em;
+    vertical-align: middle;
+}
+
+.rank-progress-container {
+    max-width: 380px;
+    margin: 0 auto;
+}
+
+.progress-info-split {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-top: 4px;
+}
+
+.next-rank-label strong, .rp-needed-label strong {
+    color: var(--text-primary);
+}
+
+/* 3 Metrics Tiles */
+.rank-metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
     margin-bottom: 14px;
 }
 
-.rank-hero-title {
-    font-size: 1.4rem;
+.rank-metric-card {
+    background-color: var(--card-elevated);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    padding: 10px 8px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.rm-label {
+    font-size: 0.62rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+}
+
+.rm-val {
+    font-size: 0.95rem;
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+}
+
+.rm-val strong {
+    font-weight: 800;
+}
+
+.rm-sub {
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: var(--accent-emerald);
+}
+
+/* Anti-Ego Lifting Manifesto */
+.anti-ego-card {
+    background: rgba(34, 197, 94, 0.08);
+    border: 1px dashed rgba(34, 197, 94, 0.4);
+    border-radius: var(--radius-md);
+    padding: 12px 14px;
+    margin-bottom: 14px;
+}
+
+.anti-ego-title {
+    font-size: 0.82rem;
     font-weight: 800;
     color: var(--accent-emerald);
+    margin-bottom: 4px;
 }
 
-.rank-hero-level {
-    font-size: 0.95rem;
-    font-weight: 700;
-    color: var(--text-primary);
-    margin: 2px 0;
-}
-
-.rank-hero-stat {
-    font-size: 0.8rem;
+.anti-ego-desc {
+    font-size: 0.74rem;
+    line-height: 1.45;
     color: var(--text-secondary);
+    margin: 0;
 }
 
-.progress-bar-track {
-    margin: 12px 0 6px 0;
-    background-color: var(--input-surface);
-    border-radius: var(--radius-full);
-    height: 8px;
-    overflow: hidden;
+.anti-ego-desc strong {
+    color: var(--text-primary);
 }
 
-.progress-bar-fill {
-    height: 100%;
-    background-color: var(--accent-emerald);
-    border-radius: var(--radius-full);
-    transition: width 0.3s ease;
-}
-
-.progress-hint {
-    font-size: 0.76rem;
-    color: var(--accent-emerald);
-}
-
-.tier-list-container {
+/* League Roadmap Tiers */
+.league-tiers-container {
     display: flex;
     flex-direction: column;
     gap: 6px;
-    font-size: 0.8rem;
     margin-bottom: 14px;
 }
 
-.tier-list-title {
-    font-size: 0.75rem;
+.league-header-label {
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+}
+
+.tiers-scroll-list {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    max-height: 220px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.league-tier-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    background-color: var(--card-elevated);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-sm);
+    transition: all 0.15s ease;
+}
+
+.league-tier-row.tier-active {
+    background-color: var(--accent-emerald-light);
+    border-width: 1.5px;
+    font-weight: 700;
+}
+
+.tier-badge-icon {
+    font-size: 1.1rem;
+    line-height: 1;
+}
+
+.tier-details {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    gap: 1px;
+}
+
+.tier-title-bold {
+    font-size: 0.78rem;
+    font-weight: 800;
+}
+
+.tier-rp-threshold {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+}
+
+.tier-status-chip {
+    font-size: 0.62rem;
+    font-weight: 800;
+    background-color: var(--accent-emerald);
+    color: #052e16;
+    padding: 2px 7px;
+    border-radius: var(--radius-full);
+}
+
+/* ==========================================================================
+   MODAL 5: POST-WORKOUT VICTORY SCREEN (MATCH SUMMARY)
+   ========================================================================== */
+
+.victory-card {
+    text-align: center;
+    max-width: 480px;
+    background: linear-gradient(180deg, var(--card-surface), var(--card-elevated));
+    border: 1.5px solid rgba(34, 197, 94, 0.4);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.victory-header {
+    margin-bottom: 14px;
+}
+
+.victory-icon-halo {
+    font-size: 2.8rem;
+    margin-bottom: 4px;
+    filter: drop-shadow(0 4px 12px rgba(34, 197, 94, 0.4));
+    animation: bounce-subtle 1.5s ease infinite alternate;
+}
+
+@keyframes bounce-subtle {
+    0% { transform: translateY(0); }
+    100% { transform: translateY(-4px); }
+}
+
+.victory-title {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    letter-spacing: 0.02em;
+}
+
+.victory-subtitle {
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    margin-top: 2px;
+}
+
+/* Strain Hero Gauge */
+.strain-hero-gauge {
+    background-color: var(--card-elevated);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    padding: 16px;
+    margin-bottom: 14px;
+}
+
+.strain-score-large {
+    font-family: var(--font-mono);
+    line-height: 1;
+}
+
+.strain-num {
+    font-size: 2.6rem;
+    font-weight: 900;
+    color: var(--accent-emerald);
+}
+
+.strain-max {
+    font-size: 1rem;
     font-weight: 700;
     color: var(--text-muted);
+}
+
+.strain-level-label {
+    margin-top: 8px;
+}
+
+.strain-tag {
+    font-size: 0.72rem;
+    font-weight: 800;
+    padding: 3px 10px;
+    border-radius: var(--radius-full);
+    display: inline-block;
+}
+
+.strain-tag.high {
+    background-color: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.strain-tag.med {
+    background-color: rgba(234, 179, 8, 0.15);
+    color: #eab308;
+    border: 1px solid rgba(234, 179, 8, 0.3);
+}
+
+.strain-tag.low {
+    background-color: rgba(34, 197, 94, 0.15);
+    color: var(--accent-emerald);
+    border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+/* Victory Metrics Grid */
+.victory-metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.v-metric-box {
+    background-color: var(--card-elevated);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    padding: 10px;
+    text-align: center;
+}
+
+.v-metric-box.v-rp-box {
+    border-color: rgba(34, 197, 94, 0.35);
+    background: rgba(34, 197, 94, 0.06);
+}
+
+.v-label {
+    font-size: 0.65rem;
+    font-weight: 800;
+    color: var(--text-muted);
+    letter-spacing: 0.05em;
+    display: block;
     margin-bottom: 2px;
 }
 
-.tier-item {
-    padding: 6px 10px;
-    background-color: var(--card-elevated);
-    border-radius: var(--radius-sm);
-    color: var(--text-muted);
+.v-val {
+    font-size: 1.05rem;
+    color: var(--text-primary);
+    font-family: var(--font-mono);
 }
 
-.tier-item.active {
+/* Victory Rank Advance */
+.victory-rank-advance {
+    background-color: var(--card-elevated);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    padding: 12px;
+    margin-bottom: 16px;
+    text-align: left;
+}
+
+.v-rank-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.78rem;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+}
+
+.v-rank-header strong {
+    color: var(--text-primary);
+}
+
+.v-rank-next {
     color: var(--accent-emerald);
     font-weight: 700;
-    border: 1px solid rgba(34, 197, 94, 0.4);
-    background-color: var(--accent-emerald-light);
+}
+
+.victory-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
 
 /* Schedule Inputs Grid */

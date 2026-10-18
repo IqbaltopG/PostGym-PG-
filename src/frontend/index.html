@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>POST GYM — Offline Gym Tracker & AI Assistant</title>
-    <link rel="stylesheet" href="style.css?v=10">
-    <script src="app.js?v=10" defer></script>
+    <link rel="stylesheet" href="style.css?v=11">
+    <script src="app.js?v=11" defer></script>
     <script defer src="alpine.min.js"></script>
     <script defer src="chart.min.js"></script>
 </head>
@@ -28,10 +28,11 @@
                     <span class="account-id-snippet" x-text="account.account_id ? account.account_id.slice(5, 14) : 'Akun'"></span>
                 </div>
 
-                <!-- GAMIFICATION LEVEL BADGE -->
-                <div class="gamification-badge" x-show="todaySchedule.gamification" @click="showRankModal = true" title="Klik untuk lihat detail rank RPG">
-                    <span class="level-chip">Lv.<span x-text="todaySchedule.gamification?.level"></span></span>
-                    <span class="rank-name" x-text="todaySchedule.gamification?.title"></span>
+                <!-- COMPETITIVE ATHLETIC RANK BADGE -->
+                <div class="competitive-rank-badge" @click="showRankModal = true" :title="'Rank: ' + (rankInfo?.current_tier || 'Recruit')">
+                    <span class="rank-icon-badge" x-text="rankInfo?.tier_icon || '🥇'"></span>
+                    <span class="rank-name-bold" x-text="rankInfo?.current_tier || 'Recruit'"></span>
+                    <span class="rank-rp-pill" x-text="(rankInfo?.total_rp || 0) + ' RP'"></span>
                 </div>
 
                 <!-- THEME TOGGLE BUTTON -->
@@ -137,37 +138,77 @@
             </div>
         </div>
 
-        <!-- MODAL 2: RANK RPG DETAILS -->
+        <!-- MODAL 2: COMPETITIVE ATHLETIC RANK SYSTEM -->
         <div x-show="showRankModal" x-cloak class="modal-backdrop">
-            <div class="modal-card" @click.away="showRankModal = false">
+            <div class="modal-card scrollable" @click.away="showRankModal = false">
                 <div class="modal-header">
                     <div class="modal-title-wrap">
                         <span class="modal-icon">🏆</span>
-                        <h2>Detail Rank RPG</h2>
+                        <h2>Athletic Competitive Rank</h2>
                     </div>
                     <button class="btn-close-modal" @click="showRankModal = false">&times;</button>
                 </div>
                 
-                <div class="rank-highlight-box">
-                    <div class="rank-hero-title" x-text="todaySchedule.gamification?.title"></div>
-                    <div class="rank-hero-level">Level <span x-text="todaySchedule.gamification?.level"></span></div>
-                    <div class="rank-hero-stat">Total Sesi Tercatat: <strong x-text="todaySchedule.gamification?.total_sessions"></strong> Sesi</div>
+                <!-- CURRENT RANK HERO -->
+                <div class="rank-hero-box" :style="'border-color: ' + (rankInfo?.tier_color || '#eab308')">
+                    <div class="rank-hero-icon" x-text="rankInfo?.tier_icon || '🥇'"></div>
+                    <div class="rank-hero-tier" :style="'color: ' + (rankInfo?.tier_color || '#eab308')" x-text="rankInfo?.current_tier || 'Recruit'"></div>
+                    <div class="rank-hero-rp"><span x-text="(rankInfo?.total_rp || 0).toLocaleString()"></span> <span class="rp-unit">RP (Rank Points)</span></div>
                     
-                    <div class="progress-bar-track">
-                        <div class="progress-bar-fill" :style="'width: ' + (todaySchedule.gamification?.progress_percent || 0) + '%;'"></div>
-                    </div>
-                    <div class="progress-hint">
-                        Tinggal <strong x-text="todaySchedule.gamification?.sessions_needed"></strong> sesi lagi untuk naik level!
+                    <!-- PROGRESS TOWARDS NEXT TIER -->
+                    <div class="rank-progress-container">
+                        <div class="progress-bar-track">
+                            <div class="progress-bar-fill" :style="'width: ' + (rankInfo?.progress_percent || 0) + '%; background-color: ' + (rankInfo?.tier_color || 'var(--accent-emerald)');"></div>
+                        </div>
+                        <div class="progress-info-split">
+                            <span class="next-rank-label">Next: <strong x-text="rankInfo?.next_tier"></strong></span>
+                            <span class="rp-needed-label"><strong x-text="rankInfo?.rp_to_next"></strong> RP lagi</span>
+                        </div>
                     </div>
                 </div>
 
-                <div class="tier-list-container">
-                    <div class="tier-list-title">Daftar Gelar Latihan:</div>
-                    <div class="tier-item" :class="{ 'active': todaySchedule.gamification?.level <= 2 }">🐣 Couch Potato (Level 1–2 / 1–10 sesi)</div>
-                    <div class="tier-item" :class="{ 'active': todaySchedule.gamification?.level >= 3 && todaySchedule.gamification?.level <= 5 }">🦍 Gym Bro (Level 3–5 / 11–25 sesi)</div>
-                    <div class="tier-item" :class="{ 'active': todaySchedule.gamification?.level >= 6 && todaySchedule.gamification?.level <= 8 }">🦾 Iron Man (Level 6–8 / 26–40 sesi)</div>
-                    <div class="tier-item" :class="{ 'active': todaySchedule.gamification?.level >= 9 && todaySchedule.gamification?.level <= 12 }">🔱 Poseidon (Level 9–12 / 41–60 sesi)</div>
-                    <div class="tier-item" :class="{ 'active': todaySchedule.gamification?.level >= 13 }">⚡ Greek God (Level 13+ / 61+ sesi)</div>
+                <!-- 3 ATHLETIC METRICS TILES -->
+                <div class="rank-metrics-grid">
+                    <div class="rank-metric-card">
+                        <span class="rm-label">WORKLOAD TONASE</span>
+                        <span class="rm-val"><strong x-text="(rankInfo?.total_volume_kg || 0).toLocaleString()"></strong> kg</span>
+                        <span class="rm-sub">+<span x-text="rankInfo?.volume_rp || 0"></span> RP Vol</span>
+                    </div>
+                    <div class="rank-metric-card">
+                        <span class="rm-label">KONSISTENSI SESI</span>
+                        <span class="rm-val"><strong x-text="rankInfo?.total_sessions || 0"></strong> Sesi</span>
+                        <span class="rm-sub">+<span x-text="rankInfo?.consistency_rp || 0"></span> RP Disiplin</span>
+                    </div>
+                    <div class="rank-metric-card">
+                        <span class="rm-label">TOTAL SET SELESAI</span>
+                        <span class="rm-val"><strong x-text="rankInfo?.total_sets || 0"></strong> Set</span>
+                        <span class="rm-sub">Form Terverifikasi</span>
+                    </div>
+                </div>
+
+                <!-- ANTI-EGO LIFTING MANIFESTO -->
+                <div class="anti-ego-card">
+                    <div class="anti-ego-title">🛡️ Anti-Ego Lifting Algorithm</div>
+                    <p class="anti-ego-desc">
+                        Poin rank kompetitif dihitung murni dari <strong>Total Tonase Beban Kerja</strong> (<em>Volume = Beban × Reps</em>) dan <strong>Konsistensi Kehadiran</strong>, bukan 1-rep max (1RM) nekat yang berisiko cedera. Disiplin akumulasi beban dan repetisi bersih adalah penentu juara atletik sejati.
+                    </p>
+                </div>
+
+                <!-- LEAGUE ROADMAP (ALL TIERS) -->
+                <div class="league-tiers-container">
+                    <div class="league-header-label">DIVISI LIGA ATLETIK:</div>
+                    <div class="tiers-scroll-list">
+                        <template x-for="t in (rankInfo?.all_tiers || [])" :key="t.name">
+                            <div class="league-tier-row" :class="{ 'tier-active': t.name === rankInfo?.current_tier }" :style="t.name === rankInfo?.current_tier ? ('border-color: ' + t.color) : ''">
+                                <span class="tier-badge-icon" x-text="t.icon"></span>
+                                <div class="tier-details">
+                                    <span class="tier-title-bold" :style="'color: ' + t.color" x-text="t.name"></span>
+                                    <span class="tier-rp-threshold" x-text="t.min_rp + (t.max_rp < 99999 ? ' – ' + t.max_rp : '+') + ' RP'"></span>
+                                </div>
+                                <span class="tier-status-chip" x-show="t.name === rankInfo?.current_tier">RANK KAMU</span>
+                            </div>
+                        </template>
+                    </div>
                 </div>
 
                 <button class="btn-modal-close" @click="showRankModal = false">Tutup</button>
@@ -249,6 +290,72 @@
             </div>
         </div>
 
+        <!-- MODAL 5: POST-WORKOUT VICTORY SCREEN (MATCH SUMMARY) -->
+        <div x-show="showVictoryModal" x-cloak class="modal-backdrop">
+            <div class="modal-card victory-card" @click.away="showVictoryModal = false">
+                <div class="victory-header">
+                    <div class="victory-icon-halo">🏆</div>
+                    <h2 class="victory-title">RINGKASAN SESI LATIHAN</h2>
+                    <p class="victory-subtitle">Workload & Strain Telemetri Hari Ini</p>
+                </div>
+
+                <!-- STRAIN INTENSITY METER -->
+                <div class="strain-hero-gauge">
+                    <div class="strain-score-large">
+                        <span class="strain-num" x-text="sessionSummary?.strain_score || 0"></span>
+                        <span class="strain-max">/100</span>
+                    </div>
+                    <div class="strain-level-label">
+                        <template x-if="(sessionSummary?.strain_score || 0) >= 70">
+                            <span class="strain-tag high">🔥 INTENSITAS TINGGI (High Strain)</span>
+                        </template>
+                        <template x-if="(sessionSummary?.strain_score || 0) >= 35 && (sessionSummary?.strain_score || 0) < 70">
+                            <span class="strain-tag med">⚡ INTENSITAS OPTIMAL (Moderate)</span>
+                        </template>
+                        <template x-if="(sessionSummary?.strain_score || 0) < 35">
+                            <span class="strain-tag low">🌱 INTENSITAS PEMULA / RINGAN</span>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- METRICS GRID -->
+                <div class="victory-metrics-grid">
+                    <div class="v-metric-box">
+                        <span class="v-label">WORKLOAD TONASE</span>
+                        <span class="v-val"><strong x-text="sessionSummary?.total_volume_kg || 0"></strong> kg</span>
+                    </div>
+                    <div class="v-metric-box">
+                        <span class="v-label">TOTAL SET</span>
+                        <span class="v-val"><strong x-text="sessionSummary?.total_sets || 0"></strong> Set</span>
+                    </div>
+                    <div class="v-metric-box">
+                        <span class="v-label">TOTAL REPETISI</span>
+                        <span class="v-val"><strong x-text="sessionSummary?.total_reps || 0"></strong> Reps</span>
+                    </div>
+                    <div class="v-metric-box v-rp-box">
+                        <span class="v-label">RP EARNED</span>
+                        <span class="v-val text-accent">+<strong x-text="sessionSummary?.rp_earned || 0"></strong> RP</span>
+                    </div>
+                </div>
+
+                <!-- RANK ADVANCE PROGRESS -->
+                <div class="victory-rank-advance">
+                    <div class="v-rank-header">
+                        <span>Rank: <strong x-text="rankInfo?.current_tier"></strong></span>
+                        <span class="v-rank-next" x-show="rankInfo?.rp_to_next > 0"><span x-text="rankInfo?.rp_to_next"></span> RP lagi ke <span x-text="rankInfo?.next_tier"></span></span>
+                    </div>
+                    <div class="progress-bar-track">
+                        <div class="progress-bar-fill" :style="'width: ' + (rankInfo?.progress_percent || 0) + '%; background-color: ' + (rankInfo?.tier_color || 'var(--accent-emerald)');"></div>
+                    </div>
+                </div>
+
+                <div class="victory-actions">
+                    <button class="btn-solid-primary" @click="showVictoryModal = false">Mantap, Selesai Istirahat 🛌</button>
+                    <button class="btn-secondary" @click="showVictoryModal = false; activeTab = 'history'">Lihat Riwayat Lengkap 📋</button>
+                </div>
+            </div>
+        </div>
+
         <!-- MAIN SCROLLABLE CONTENT -->
         <main class="content-area">
             
@@ -261,6 +368,27 @@
                         <h2 class="section-main-title" x-text="todaySchedule.name"></h2>
                     </div>
                     <button class="btn-compact-settings" @click="openScheduleModal()">⚙️ Atur</button>
+                </div>
+
+                <!-- TODAY'S WORKLOAD & STRAIN TELEMETRY BANNER -->
+                <div class="today-performance-card" x-show="sessionSummary && sessionSummary.total_sets > 0" @click="showVictoryModal = true" title="Klik untuk lihat Ringkasan Sesi Latihan">
+                    <div class="perf-left">
+                        <div class="perf-status-line">
+                            <span class="pulse-indicator"></span>
+                            <span class="perf-tag">TELEMETRI SESI AKTIF</span>
+                        </div>
+                        <div class="perf-stats-inline">
+                            <span class="perf-stat-item"><strong><span x-text="sessionSummary?.total_volume_kg"></span></strong> kg Tonase</span>
+                            <span class="perf-sep">•</span>
+                            <span class="perf-stat-item"><strong><span x-text="sessionSummary?.total_sets"></span></strong> Set (<span x-text="sessionSummary?.total_reps"></span> reps)</span>
+                            <span class="perf-sep">•</span>
+                            <span class="perf-stat-item strain-chip">Strain <strong><span x-text="sessionSummary?.strain_score"></span></strong>/100</span>
+                        </div>
+                    </div>
+                    <div class="perf-right">
+                        <span class="rp-gain-badge">+<span x-text="sessionSummary?.rp_earned"></span> RP</span>
+                        <span class="perf-arrow">›</span>
+                    </div>
                 </div>
 
                 <!-- REST DAY STATE -->
@@ -363,6 +491,7 @@
 
                 <!-- EXTRA ACTIONS AT BOTTOM OF JADWAL -->
                 <div class="bottom-action-buttons">
+                    <button class="btn-secondary-action" x-show="sessionSummary && sessionSummary.total_sets > 0" @click="showVictoryModal = true">🏆 Match Summary Hari Ini</button>
                     <button class="btn-secondary-action" @click="showCustomLogModal = true">➕ Tambah Gerakan Lain</button>
                     <button class="btn-secondary-action" @click="activeTab = 'log'">✏️ Catat Teks Bebas (Log AI)</button>
                 </div>
@@ -372,20 +501,12 @@
             <!-- TAB 2: LOG AI (FREE-TEXT PARSER — PRO TIER) -->
             <div x-show="activeTab === 'log'" class="tab-pane" x-transition>
                 
-                <div class="tier-access-banner" :class="account.is_pro ? 'banner-pro' : 'banner-free'">
-                    <div class="tier-banner-info">
-                        <span class="tier-banner-icon" x-text="account.is_pro ? '⚡' : '🔒'"></span>
-                        <div>
-                            <div class="tier-banner-title" x-text="account.is_pro ? 'AI Slang Parser Siap (Model Qwen 2.5 1.5B Lokal)' : 'Fitur AI Slang Parser (Eksklusif PRO)'"></div>
-                            <div class="tier-banner-sub" x-text="account.is_pro ? 'Parsing bahasa gaul gym Indonesia 100% offline' : 'Gunakan voucher demo gratis PGYM-PRO-2026 untuk mengaktifkan'"></div>
-                        </div>
-                    </div>
-                    <button x-show="!account.is_pro" class="btn-banner-upgrade" @click="showAccountModal = true">Aktivasi</button>
-                </div>
-
                 <div class="card-container">
-                    <h2 class="card-title">Ketik Bebas Log Latihan</h2>
-                    <p class="helper-text">Ketik nama alat, beban, repetisi, atau slang lokal. AI akan otomatis menormalisasi.</p>
+                    <div class="card-header-between">
+                        <h2 class="card-title">Ketik Bebas Log Latihan</h2>
+                        <span class="pill-chip">AI Parser</span>
+                    </div>
+                    <p class="helper-text">Ketik nama alat, beban, repetisi, atau slang lokal. AI akan otomatis mendeteksi dan menormalisasi format latihanmu.</p>
                     
                     <div class="textarea-wrapper">
                         <textarea 
@@ -426,17 +547,6 @@
             <!-- TAB 3: FORM AI (VIDEO POSE CHECKER — PRO TIER) -->
             <div x-show="activeTab === 'vision'" class="tab-pane" x-transition>
                 
-                <div class="tier-access-banner" :class="account.is_pro ? 'banner-pro' : 'banner-free'">
-                    <div class="tier-banner-info">
-                        <span class="tier-banner-icon" x-text="account.is_pro ? '⚡' : '🔒'"></span>
-                        <div>
-                            <div class="tier-banner-title" x-text="account.is_pro ? 'YOLOv8 Pose Tracker Siap' : 'AI Video Form Check (Eksklusif PRO)'"></div>
-                            <div class="tier-banner-sub" x-text="account.is_pro ? 'Deteksi rep & form check 100% lokal di HP/laptopmu' : 'Aktivasi PRO dengan voucher demo PGYM-PRO-2026'"></div>
-                        </div>
-                    </div>
-                    <button x-show="!account.is_pro" class="btn-banner-upgrade" @click="showAccountModal = true">Aktivasi</button>
-                </div>
-
                 <div class="card-container">
                     <div class="card-header-between">
                         <h2 class="card-title">📹 AI Video Form Check</h2>
